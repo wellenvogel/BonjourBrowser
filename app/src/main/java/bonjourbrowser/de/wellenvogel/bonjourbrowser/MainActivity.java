@@ -130,6 +130,29 @@ public class MainActivity extends AppCompatActivity {
         adapter.add(target);
     }
 
+    private void resolveService(final NsdServiceInfo service){
+        nsdManager.resolveService(service, new NsdManager.ResolveListener() {
+            @Override
+            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+                Log.e(PRFX,"resolve failed for "+nsdServiceInfo.getServiceName()+": "+Integer.toString(i));
+            }
+
+            @Override
+            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
+                Target target=new Target();
+                target.name=nsdServiceInfo.getServiceName();
+                target.host=nsdServiceInfo.getHost().getHostName();
+                try {
+                    target.uri=new URI("http",null,nsdServiceInfo.getHost().getHostAddress(),nsdServiceInfo.getPort(),null,null,null);
+                    Message targetMessage=handler.obtainMessage(1,target);
+                    targetMessage.sendToTarget();
+                } catch (URISyntaxException e) {
+                    Log.e(PRFX,e.getMessage());
+                }
+
+            }
+        });
+    }
     public void initializeDiscoveryListener() {
 
         // Instantiate a new DiscoveryListener
@@ -148,47 +171,8 @@ public class MainActivity extends AppCompatActivity {
                 if (!service.getServiceType().equals(SERVICE_TYPE)) {
                     return;
                 }
-                nsdManager.resolveService(service, new NsdManager.ResolveListener() {
-                    @Override
-                    public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                        Log.e(PRFX,"resolve failed for "+nsdServiceInfo.getServiceName());
-                    }
+                resolveService(service);
 
-                    @Override
-                    public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                        Target target=new Target();
-                        target.name=nsdServiceInfo.getServiceName();
-                        target.host=nsdServiceInfo.getHost().getHostName();
-                        try {
-                            target.uri=new URI("http",null,nsdServiceInfo.getHost().getHostAddress(),nsdServiceInfo.getPort(),null,null,null);
-                            Message targetMessage=handler.obtainMessage(1,target);
-                            targetMessage.sendToTarget();
-                        } catch (URISyntaxException e) {
-                            Log.e(PRFX,e.getMessage());
-                        }
-                    }
-                });
-
-                nsdManager.resolveService(service, new NsdManager.ResolveListener() {
-                    @Override
-                    public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                        Log.e(PRFX,"resolve failed for "+nsdServiceInfo.getServiceName());
-                    }
-
-                    @Override
-                    public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                        Target target=new Target();
-                        target.name=nsdServiceInfo.getServiceName();
-                        target.host=nsdServiceInfo.getHost().getHostName();
-                        try {
-                            target.uri=new URI("http",null,nsdServiceInfo.getHost().getHostAddress(),nsdServiceInfo.getPort(),null,null,null);
-                            Message targetMessage=handler.obtainMessage(1,target);
-                            targetMessage.sendToTarget();
-                        } catch (URISyntaxException e) {
-                            Log.e(PRFX,e.getMessage());
-                        }
-                    }
-                });
             }
 
             @Override
