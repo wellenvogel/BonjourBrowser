@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private ListView list;
     private ProgressBar spinner;
     private TargetAdapter adapter;
+    private Button scanButton;
     private NsdManager.DiscoveryListener discoveryListener;
     private NsdManager nsdManager;
     private static String PRFX="BonjourBrowser";
@@ -86,20 +87,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final Button scanButton=(Button)findViewById(R.id.scan);
+        scanButton=(Button)findViewById(R.id.scan);
         scanButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if (discoveryActive){
-                    nsdManager.stopServiceDiscovery(discoveryListener);
-                    discoveryActive=false;
-                    scanButton.setText(R.string.scan);
-                    spinner.setVisibility(View.INVISIBLE);
-                    startSequence++; //stops timer
+                    stopScan();
                 }
                 else {
-                    scanButton.setText(R.string.stop);
-                    spinner.setVisibility(View.VISIBLE);
                     scan();
                 }
             }
@@ -139,6 +134,12 @@ public class MainActivity extends AppCompatActivity {
         spinner.setVisibility(View.INVISIBLE);
     }
 
+    @Override
+    public void onStop(){
+        stopScan();
+        super.onStop();
+    }
+
     private void startTimer(){
         Message nextTimer=handler.obtainMessage(TIMER_MSG,startSequence);
         handler.sendMessageDelayed(nextTimer,DISCOVERY_TIMER);
@@ -152,6 +153,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scan(){
+        scanButton.setText(R.string.stop);
+        spinner.setVisibility(View.VISIBLE);
         startSequence++;
         if (discoveryActive) {
             nsdManager.stopServiceDiscovery(discoveryListener);
@@ -165,6 +168,15 @@ public class MainActivity extends AppCompatActivity {
                 SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
         discoveryActive=true;
         startTimer();
+    }
+    private void stopScan(){
+        if (discoveryActive) {
+            nsdManager.stopServiceDiscovery(discoveryListener);
+        }
+        discoveryActive=false;
+        scanButton.setText(R.string.scan);
+        spinner.setVisibility(View.INVISIBLE);
+        startSequence++; //stops timer
     }
 
     private void addTarget(Target target){
@@ -270,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStartDiscoveryFailed(String serviceType, int errorCode) {
                 Log.e(PRFX, "Discovery failed: Error code:" + errorCode);
-                nsdManager.stopServiceDiscovery(this);
+                stopScan();
             }
 
             @Override
