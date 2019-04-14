@@ -2,6 +2,7 @@ package bonjourbrowser.de.wellenvogel.bonjourbrowser;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
@@ -12,8 +13,12 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -47,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int TIMER_MSG=3;
     private static final long DISCOVERY_TIMER=1000;
     private static final long RESOLVE_TIMEOUT=10000; //restart resolve after this time anyway
+    private static final String PREF_INTERNAL="internalBrowser";
     private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
     private long lastResolveStart=0;
     private boolean resolveRunning=false;
@@ -132,12 +138,30 @@ public class MainActivity extends AppCompatActivity {
         };
         spinner=findViewById(R.id.progressBar);
         spinner.setVisibility(View.INVISIBLE);
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
     }
 
     @Override
     public void onStop(){
         stopScan();
         super.onStop();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater=getMenuInflater();
+        inflater.inflate(R.menu.main_menu,menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.settings){
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        return false;
     }
 
     private void startTimer(){
@@ -148,8 +172,19 @@ public class MainActivity extends AppCompatActivity {
     private void handleItemClick(int position){
         Target target=adapter.getItem(position);
         if (target == null) return;
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW,Uri.parse(target.uri.toString()));
-        startActivity(browserIntent);
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        Boolean runInternal=sharedPref.getBoolean(PREF_INTERNAL,false);
+        if (runInternal){
+            Intent i = new Intent(this, WebViewActivity.class);
+            i.putExtra(WebViewActivity.URL_PARAM, target.uri);
+            startActivity(i);
+            return;
+        }
+        else {
+            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.uri.toString()));
+            startActivity(browserIntent);
+        }
     }
 
     private void scan(){
