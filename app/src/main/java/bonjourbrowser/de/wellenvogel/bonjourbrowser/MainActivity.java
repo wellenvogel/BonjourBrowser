@@ -20,6 +20,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.net.URI;
@@ -31,6 +32,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private ListView list;
+    private ProgressBar spinner;
     private TargetAdapter adapter;
     private NsdManager.DiscoveryListener discoveryListener;
     private NsdManager nsdManager;
@@ -77,11 +79,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Button scanButton=(Button)findViewById(R.id.scan);
+        final Button scanButton=(Button)findViewById(R.id.scan);
         scanButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                scan();
+                if (discoveryActive){
+                    nsdManager.stopServiceDiscovery(discoveryListener);
+                    discoveryActive=false;
+                    scanButton.setText(R.string.scan);
+                    spinner.setVisibility(View.INVISIBLE);
+                }
+                else {
+                    scanButton.setText(R.string.stop);
+                    spinner.setVisibility(View.VISIBLE);
+                    scan();
+                }
             }
         });
         list=(ListView)findViewById(R.id.list);
@@ -108,6 +120,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+        spinner=findViewById(R.id.progressBar);
+        spinner.setVisibility(View.INVISIBLE);
     }
 
     private void handleItemClick(int position){
