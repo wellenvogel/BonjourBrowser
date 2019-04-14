@@ -178,6 +178,7 @@ public class MainActivity extends AppCompatActivity {
         if (runInternal){
             Intent i = new Intent(this, WebViewActivity.class);
             i.putExtra(WebViewActivity.URL_PARAM, target.uri);
+            i.putExtra(WebViewActivity.NAME_PARAM, target.name);
             startActivity(i);
             return;
         }

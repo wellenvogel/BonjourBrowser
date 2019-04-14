@@ -11,4 +11,9 @@
         android:defaultValue="true"
         android:key="keepScreenOn"
         android:title="@string/prefKeepOn" />
+    <android.support.v7.preference.Preference
+        android:id="@+id/reset"
+        android:defaultValue=""
+        android:key="reset"
+        android:title="@string/prefReset" />
 </PreferenceScreen>

@@ -1,5 +1,6 @@
 package bonjourbrowser.de.wellenvogel.bonjourbrowser;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,6 +14,7 @@ import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ProgressBar;
 
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -23,22 +25,23 @@ public class WebViewActivity extends AppCompatActivity {
     static final String NAME_PARAM="name";
     static final String PREF_KEEP_ON="keepScreenOn";
 
+
     private WebView webView;
+    private String serviceName;
+    private URI serviceUri;
+    private ProgressDialog pd;
 
     private class MyWebViewClient extends WebViewClient {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
             return false;
-            /*
-            if (Uri.parse(url).getHost().equals("https://www.example.com")) {
-                // This is my website, so do not override; let my WebView load the page
-                return false;
-            }
-            // Otherwise, the link is not for a page on my site, so launch another Activity that handles URLs
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            startActivity(intent);
-            return true;
-            */
+
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            if (pd.isShowing()) pd.dismiss();
         }
     }
 
@@ -52,6 +55,9 @@ public class WebViewActivity extends AppCompatActivity {
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webView.setWebViewClient(new MyWebViewClient());
+        webView.canZoomIn();
+        webView.canZoomOut();
+        webView.canGoBack();
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
         Boolean keepOn=sharedPref.getBoolean(PREF_KEEP_ON,false);
@@ -84,7 +90,10 @@ public class WebViewActivity extends AppCompatActivity {
                 Context.MODE_PRIVATE).getPath();
         webView.getSettings().setDatabasePath(databasePath);
         Bundle b = getIntent().getExtras();
-        URI uri=(URI)b.get(URL_PARAM);
-        webView.loadUrl(uri.toString());
+        serviceUri=(URI)b.get(URL_PARAM);
+        serviceName=b.getString(NAME_PARAM);
+        pd = ProgressDialog.show(this, "", getResources().getString(R.string.loading)+" "+serviceName, true);
+        String url=serviceUri.toString();
+        webView.loadUrl(url);
     }
 }
