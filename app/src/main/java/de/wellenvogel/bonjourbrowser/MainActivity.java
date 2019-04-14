@@ -1,4 +1,4 @@
-package bonjourbrowser.de.wellenvogel.bonjourbrowser;
+package de.wellenvogel.bonjourbrowser;
 
 import android.content.Context;
 import android.content.Intent;
@@ -30,7 +30,6 @@ import android.widget.TextView;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 

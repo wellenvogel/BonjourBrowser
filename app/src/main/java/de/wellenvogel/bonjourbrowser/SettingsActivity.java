@@ -1,4 +1,4 @@
-package bonjourbrowser.de.wellenvogel.bonjourbrowser;
+package de.wellenvogel.bonjourbrowser;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;

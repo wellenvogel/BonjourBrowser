@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="bonjourbrowser.de.wellenvogel.bonjourbrowser">
+    package="de.wellenvogel.bonjourbrowser">
 
     <uses-permission android:name="android.permission.INTERNET" />
 

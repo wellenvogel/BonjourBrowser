@@ -1,4 +1,4 @@
-package bonjourbrowser.de.wellenvogel.bonjourbrowser;
+package de.wellenvogel.bonjourbrowser;
 
 
 import android.os.Bundle;
