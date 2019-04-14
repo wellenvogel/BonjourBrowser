@@ -13,7 +13,10 @@
    version="1.1"
    id="svg6"
    sodipodi:docname="icon_src.svg"
-   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   inkscape:export-filename="/home/andreas/projects/BonjourBrowser/doc/icon512.png"
+   inkscape:export-xdpi="2048"
+   inkscape:export-ydpi="2048">
   <metadata
      id="metadata12">
     <rdf:RDF>
@@ -22,7 +25,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -42,8 +45,8 @@
      id="namedview8"
      showgrid="false"
      inkscape:zoom="9.8333333"
-     inkscape:cx="12.20339"
-     inkscape:cy="11.949153"
+     inkscape:cx="-5.4915253"
+     inkscape:cy="11.542373"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
