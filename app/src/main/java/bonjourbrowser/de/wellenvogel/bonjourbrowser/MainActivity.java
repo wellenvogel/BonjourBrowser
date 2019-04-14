@@ -38,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String SERVICE_TYPE="_http._tcp.";
     private boolean discoveryActive=false;
     private Handler handler;
+    private static final int ADD_SERVICE_MSG=1;
+    private static final int REMOVE_SERVICE_MSG=2;
 
 
     static class Target{
@@ -96,7 +98,14 @@ public class MainActivity extends AppCompatActivity {
         handler=new Handler(Looper.getMainLooper()){
             @Override
             public void handleMessage(Message msg) {
-                addTarget((Target)msg.obj);
+                switch (msg.what){
+                    case ADD_SERVICE_MSG:
+                        addTarget((Target)msg.obj);
+                        break;
+                    case REMOVE_SERVICE_MSG:
+                        removeService((String)msg.obj);
+                        break;
+                }
             }
         };
     }
@@ -129,6 +138,19 @@ public class MainActivity extends AppCompatActivity {
         }
         adapter.add(target);
     }
+    private void removeService(String name){
+        ArrayList<Target> removeItems=new ArrayList<>();
+        int num=adapter.getCount();
+        for (int i=0;i<num;i++){
+            Target item=adapter.getItem(i);
+            if (item.name.equals(name)){
+                removeItems.add(item);
+            }
+        }
+        for (Target item:removeItems){
+            adapter.remove(item);
+        }
+    }
 
     private void resolveService(final NsdServiceInfo service){
         nsdManager.resolveService(service, new NsdManager.ResolveListener() {
@@ -144,7 +166,7 @@ public class MainActivity extends AppCompatActivity {
                 target.host=nsdServiceInfo.getHost().getHostName();
                 try {
                     target.uri=new URI("http",null,nsdServiceInfo.getHost().getHostAddress(),nsdServiceInfo.getPort(),null,null,null);
-                    Message targetMessage=handler.obtainMessage(1,target);
+                    Message targetMessage=handler.obtainMessage(ADD_SERVICE_MSG,target);
                     targetMessage.sendToTarget();
                 } catch (URISyntaxException e) {
                     Log.e(PRFX,e.getMessage());
@@ -180,6 +202,8 @@ public class MainActivity extends AppCompatActivity {
                 // When the network service is no longer available.
                 // Internal bookkeeping code goes here.
                 Log.e(PRFX, "service lost: " + service);
+                Message targetMessage=handler.obtainMessage(REMOVE_SERVICE_MSG,service.getServiceName());
+                targetMessage.sendToTarget();
             }
 
             @Override
