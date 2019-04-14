@@ -6,6 +6,7 @@
     <string name="settings">Settings</string>
     <string name="prefInternal">Internal Browser</string>
     <string name="prefKeepOn">Keep Screen On</string>
-    <string name="prefReset">Reset Web Storage</string>
+    <string name="prefReset">Reset Web Storage (Restart)</string>
     <string name="loading">Loading </string>
+    <string name="authentication">Authentication required</string>
 </resources>
