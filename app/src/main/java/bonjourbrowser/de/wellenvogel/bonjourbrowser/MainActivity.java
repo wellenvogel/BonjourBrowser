@@ -40,8 +40,15 @@ public class MainActivity extends AppCompatActivity {
     private static final String SERVICE_TYPE="_http._tcp.";
     private boolean discoveryActive=false;
     private Handler handler;
+    private long startSequence=0;
     private static final int ADD_SERVICE_MSG=1;
     private static final int REMOVE_SERVICE_MSG=2;
+    private static final int TIMER_MSG=3;
+    private static final long DISCOVERY_TIMER=1000;
+    private static final long RESOLVE_TIMEOUT=10000; //restart resolve after this time anyway
+    private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
+    private long lastResolveStart=0;
+    private boolean resolveRunning=false;
 
 
     static class Target{
@@ -88,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
                     discoveryActive=false;
                     scanButton.setText(R.string.scan);
                     spinner.setVisibility(View.INVISIBLE);
+                    startSequence++; //stops timer
                 }
                 else {
                     scanButton.setText(R.string.stop);
@@ -117,11 +125,23 @@ public class MainActivity extends AppCompatActivity {
                     case REMOVE_SERVICE_MSG:
                         removeService((String)msg.obj);
                         break;
+                    case TIMER_MSG:
+                        Long seq=(Long)msg.obj;
+                        if (seq != startSequence) return;
+                        startTimer();
+                        resolveNext();
+                        break;
+
                 }
             }
         };
         spinner=findViewById(R.id.progressBar);
         spinner.setVisibility(View.INVISIBLE);
+    }
+
+    private void startTimer(){
+        Message nextTimer=handler.obtainMessage(TIMER_MSG,startSequence);
+        handler.sendMessageDelayed(nextTimer,DISCOVERY_TIMER);
     }
 
     private void handleItemClick(int position){
@@ -132,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scan(){
+        startSequence++;
         if (discoveryActive) {
             nsdManager.stopServiceDiscovery(discoveryListener);
             discoveryActive=false;
@@ -143,6 +164,7 @@ public class MainActivity extends AppCompatActivity {
         nsdManager.discoverServices(
                 SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
         discoveryActive=true;
+        startTimer();
     }
 
     private void addTarget(Target target){
@@ -166,15 +188,36 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void resolveService(final NsdServiceInfo service){
+    private void resolveService(final NsdServiceInfo service) {
+        resolveQueue.add(service);
+    }
+
+    private synchronized void resolveDone(){
+        resolveRunning=false;
+    }
+
+    private synchronized void resolveNext(){
+        if (resolveQueue.size()<1 ) return;
+        long now=System.currentTimeMillis();
+        if (resolveRunning){
+            if ((lastResolveStart+RESOLVE_TIMEOUT) < now){
+                resolveRunning=false;
+            }
+            else return;
+        }
+        NsdServiceInfo service=resolveQueue.remove(0);
+        resolveRunning=true;
+        lastResolveStart=now;
         nsdManager.resolveService(service, new NsdManager.ResolveListener() {
             @Override
             public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+                resolveDone();
                 Log.e(PRFX,"resolve failed for "+nsdServiceInfo.getServiceName()+": "+Integer.toString(i));
             }
 
             @Override
             public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
+                resolveDone();
                 Target target=new Target();
                 target.name=nsdServiceInfo.getServiceName();
                 target.host=nsdServiceInfo.getHost().getHostName();
@@ -185,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
                 } catch (URISyntaxException e) {
                     Log.e(PRFX,e.getMessage());
                 }
-
             }
         });
     }
