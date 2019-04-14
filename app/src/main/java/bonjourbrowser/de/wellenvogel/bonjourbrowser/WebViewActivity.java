@@ -96,4 +96,12 @@ public class WebViewActivity extends AppCompatActivity {
         String url=serviceUri.toString();
         webView.loadUrl(url);
     }
+    @Override
+    public void onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
+    }
 }

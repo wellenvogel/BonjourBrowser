@@ -164,6 +164,12 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        scan();
+    }
+
     private void startTimer(){
         Message nextTimer=handler.obtainMessage(TIMER_MSG,startSequence);
         handler.sendMessageDelayed(nextTimer,DISCOVERY_TIMER);
