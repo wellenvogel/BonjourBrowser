@@ -3,7 +3,12 @@
 
     <android.support.v7.preference.SwitchPreferenceCompat
         android:id="@+id/internal"
-        android:defaultValue="true"
+        android:defaultValue="false"
         android:key="internalBrowser"
-        android:title="Internal Browser" />
+        android:title="@string/prefInternal" />
+    <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/keepOn"
+        android:defaultValue="true"
+        android:key="keepScreenOn"
+        android:title="@string/prefKeepOn" />
 </PreferenceScreen>

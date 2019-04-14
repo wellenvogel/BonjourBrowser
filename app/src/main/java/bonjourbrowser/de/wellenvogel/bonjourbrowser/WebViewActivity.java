@@ -2,11 +2,14 @@ package bonjourbrowser.de.wellenvogel.bonjourbrowser;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.preference.PreferenceManager;
 import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -17,6 +20,8 @@ import java.net.URI;
 public class WebViewActivity extends AppCompatActivity {
 
     static final String URL_PARAM="url";
+    static final String NAME_PARAM="name";
+    static final String PREF_KEEP_ON="keepScreenOn";
 
     private WebView webView;
 
@@ -47,6 +52,12 @@ public class WebViewActivity extends AppCompatActivity {
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webView.setWebViewClient(new MyWebViewClient());
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        Boolean keepOn=sharedPref.getBoolean(PREF_KEEP_ON,false);
+        if (keepOn){
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         if (Build.VERSION.SDK_INT >= 16){
             try {
                 WebSettings settings = webView.getSettings();

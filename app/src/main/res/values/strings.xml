@@ -4,4 +4,6 @@
     <string name="stop">Stop</string>
 
     <string name="settings">Settings</string>
+    <string name="prefInternal">Internal Browser</string>
+    <string name="prefKeepOn">Keep Screen On</string>
 </resources>
