@@ -36,6 +36,7 @@ public class WebViewActivity extends AppCompatActivity {
     private String serviceName;
     private URI serviceUri;
     private ProgressDialog pd;
+    private boolean clearHistory=false;
     private class MyWebViewClient extends WebViewClient {
         private String lastAuthHost="";
         private String lastAuthRealm="";
@@ -49,6 +50,10 @@ public class WebViewActivity extends AppCompatActivity {
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
             if (pd.isShowing()) pd.dismiss();
+            if (clearHistory){
+                view.clearHistory();
+                clearHistory=false;
+            }
         }
         @Override
         public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, final String host, final String realm) {
@@ -148,16 +153,20 @@ public class WebViewActivity extends AppCompatActivity {
         Bundle b = getIntent().getExtras();
         serviceUri=(URI)b.get(URL_PARAM);
         serviceName=b.getString(NAME_PARAM);
+        clearHistory=true;
         pd = ProgressDialog.show(this, "", getResources().getString(R.string.loading)+" "+serviceName, true);
         String url=serviceUri.toString();
         webView.loadUrl(url);
     }
+
     @Override
     public void onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack();
         } else {
+            webView.loadUrl("about:blank");
             super.onBackPressed();
         }
     }
+
 }
