@@ -30,6 +30,7 @@ public class WebViewActivity extends AppCompatActivity {
     static final String URL_PARAM="url";
     static final String NAME_PARAM="name";
     static final String PREF_KEEP_ON="keepScreenOn";
+    static final String PREF_TEXT_ZOOM="textZoom";
 
 
     private WebView webView;
@@ -147,6 +148,7 @@ public class WebViewActivity extends AppCompatActivity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setDatabaseEnabled(true);
         webView.getSettings().setAllowFileAccess(true);
+        webView.getSettings().setTextZoom(sharedPref.getInt(PREF_TEXT_ZOOM,100));
         String databasePath = webView.getContext().getDir("databases",
                 Context.MODE_PRIVATE).getPath();
         webView.getSettings().setDatabasePath(databasePath);
