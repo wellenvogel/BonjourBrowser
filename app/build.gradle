@@ -6,8 +6,8 @@ android {
         applicationId "de.wellenvogel.bonjourbrowser"
         minSdkVersion 19
         targetSdkVersion 27
-        versionCode 102
-        versionName "1.2"
+        versionCode 103
+        versionName "1.3"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -16,7 +16,7 @@ android {
         def kalias = System.getenv("ANDROID_KEYALIAS")
         def kpw = System.getenv("ANDROID_KEYPASS")
         if (ks != null && ksp != null && kalias != null && kpwd != null) {
-            println("adding signing config ${jks}")
+            println("adding signing config file=${ks}")
             config {
                 storeFile file(ks)
                 storePassword kspw
