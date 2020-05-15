@@ -32,7 +32,12 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.config
+            if (signingConfigs.hasProperty('config')) {
+                signingConfig signingConfigs.config
+            }
+            else{
+                logger.warn("no signing config for release")
+            }
         }
     }
 
