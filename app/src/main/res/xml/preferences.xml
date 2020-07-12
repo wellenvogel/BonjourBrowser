@@ -12,6 +12,16 @@
         android:defaultValue="true"
         android:key="keepScreenOn"
         android:title="@string/prefKeepOn" />
+    <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/hideStatus"
+        android:defaultValue="false"
+        android:key="hideStatus"
+        android:title="@string/hideStatus" />
+    <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/hideNavigation"
+        android:defaultValue="false"
+        android:key="hideNavigation"
+        android:title="@string/hideNavigation" />
     <de.wellenvogel.bonjourbrowser.CustomSeekBarPreference
         android:id="@+id/textZoom"
         android:defaultValue="100"

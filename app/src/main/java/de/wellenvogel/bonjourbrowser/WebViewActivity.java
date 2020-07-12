@@ -11,6 +11,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceManager;
 import android.text.InputType;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.WebSettings;
@@ -30,6 +31,8 @@ public class WebViewActivity extends AppCompatActivity {
     static final String URL_PARAM="url";
     static final String NAME_PARAM="name";
     static final String PREF_KEEP_ON="keepScreenOn";
+    static final String PREF_HIDE_STATUS="hideStatus";
+    static final String PREF_HIDE_NAVIGATION="hideNavigation";
     static final String PREF_TEXT_ZOOM="textZoom";
 
 
@@ -159,6 +162,29 @@ public class WebViewActivity extends AppCompatActivity {
         pd = ProgressDialog.show(this, "", getResources().getString(R.string.loading)+" "+serviceName, true);
         String url=serviceUri.toString();
         webView.loadUrl(url);
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus) return;
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        boolean hideStatus=sharedPref.getBoolean(PREF_HIDE_STATUS,false);
+        boolean hideNavigation=sharedPref.getBoolean(PREF_HIDE_NAVIGATION,false);
+        if (hideStatus || hideNavigation) {
+            View decorView = getWindow().getDecorView();
+            int flags=View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+            if (hideStatus) flags+=View.SYSTEM_UI_FLAG_FULLSCREEN;
+            if (hideNavigation) flags+=View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+            decorView.setSystemUiVisibility(flags);
+        }
     }
 
     @Override
