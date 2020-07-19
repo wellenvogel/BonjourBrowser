@@ -6,12 +6,15 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceManager;
 import android.text.InputType;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.WebSettings;
@@ -33,6 +36,7 @@ public class WebViewActivity extends AppCompatActivity {
     static final String PREF_KEEP_ON="keepScreenOn";
     static final String PREF_HIDE_STATUS="hideStatus";
     static final String PREF_HIDE_NAVIGATION="hideNavigation";
+    static final String PREF_ALLOW_DIM="allowDim";
     static final String PREF_TEXT_ZOOM="textZoom";
 
 
@@ -41,6 +45,26 @@ public class WebViewActivity extends AppCompatActivity {
     private URI serviceUri;
     private ProgressDialog pd;
     private boolean clearHistory=false;
+    private JavaScriptApi jsApi;
+    private float currentBrigthness=1;
+    private void doSetBrightness(float newBrightness){
+        Window w=getWindow();
+        WindowManager.LayoutParams lp=w.getAttributes();
+        lp.screenBrightness=newBrightness;
+        w.setAttributes(lp);
+    }
+    private Handler screenBrightnessHandler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            int percent=msg.what;
+            float newBrightness=(float)percent/100;
+            if (newBrightness < 0.001f) newBrightness=0.001f;
+            if (newBrightness > 1) newBrightness=1;
+            currentBrigthness=newBrightness;
+            doSetBrightness(newBrightness);
+        }
+    };
     private class MyWebViewClient extends WebViewClient {
         private String lastAuthHost="";
         private String lastAuthRealm="";
@@ -110,10 +134,16 @@ public class WebViewActivity extends AppCompatActivity {
 
     }
 
+    public void setBrightness(int percent){
+        Message msg=screenBrightnessHandler.obtainMessage(percent);
+        screenBrightnessHandler.sendMessage(msg);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
+        jsApi=new JavaScriptApi(this);
         getSupportActionBar().hide();
         webView=new WebView(this);
         setContentView(webView);
@@ -125,6 +155,10 @@ public class WebViewActivity extends AppCompatActivity {
         }
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
+        Boolean allowDim=sharedPref.getBoolean(PREF_ALLOW_DIM,false);
+        if (allowDim) {
+            webView.addJavascriptInterface(jsApi, "bonjourBrowser");
+        }
         webView.setWebViewClient(new MyWebViewClient());
         webView.canZoomIn();
         webView.canZoomOut();

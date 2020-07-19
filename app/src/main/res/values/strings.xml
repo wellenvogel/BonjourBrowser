@@ -8,6 +8,7 @@
     <string name="prefKeepOn">Keep Screen On</string>
     <string name="hideStatus">Hide System Status Bar</string>
     <string name="hideNavigation">Hide System Navigation Bar</string>
+    <string name="allowDim">Enable Dim js Api</string>
     <string name="prefReset">Reset Web Storage (Restart)</string>
     <string name="loading">Loading </string>
     <string name="authentication">Authentication required</string>
