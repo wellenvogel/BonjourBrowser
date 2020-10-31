@@ -1,0 +1,3 @@
+Entdecke Web-Portale von Geräten in Deinem lokalen Netzwerk und verbinde Dich zu ihnen mit nur einem Klick!
+
+<i>Bonjour Browser</i> ermöglicht Dir das Durchstöbern Deines lokalen Netzwerks nach Bonjour (ZeroConf, Avahi) Services für http und das Starten eines Browsers, um sich mit den gefundenen Services direkt zu verbinden. Dies kann der eingebettete Browser, oder auch der auf dem Android-Gerät vorinstallierte Browser sein.

@@ -1,0 +1,3 @@
+Discover web portals of devices in your local network and connect with one click!
+
+<i>Bonjour Browser</i> lets you browse your local network for Bonjour (ZeroConf, Avahi) services for http and launch a browser on found services. You can use the System Browser or an embedded one.
