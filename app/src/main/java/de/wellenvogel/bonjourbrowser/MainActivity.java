@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REMOVE_SERVICE_MSG=2;
     private static final int TIMER_MSG=3;
     private static final long DISCOVERY_TIMER=1000;
-    private static final long RESOLVE_TIMEOUT=10000; //restart resolve after this time anyway
+    private static final long RESOLVE_TIMEOUT=30000; //restart resolve after this time anyway
     private static final String PREF_INTERNAL="internalBrowser";
     private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
     private long lastResolveStart=0;
@@ -115,19 +115,6 @@ public class MainActivity extends AppCompatActivity {
                 handleItemClick(i);
             }
         });
-        if (!useAndroidQuery){
-            if (internalResolver != null){
-                try{
-                    internalResolver.stop();
-                }catch (Exception e){}
-            }
-            try {
-                internalResolver=Resolver.createResolver(this);
-            } catch (Exception e) {
-                Log.e(PRFX,"unable to create resolver");
-                Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
-            }
-        }
         nsdManager = (NsdManager)getSystemService(Context.NSD_SERVICE);
         handler=new Handler(Looper.getMainLooper()){
             @Override
@@ -217,6 +204,22 @@ public class MainActivity extends AppCompatActivity {
             nsdManager.stopServiceDiscovery(discoveryListener);
             discoveryActive=false;
         }
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        useAndroidQuery=!sharedPref.getBoolean("internalResolver",true);
+        if (!useAndroidQuery){
+            if (internalResolver != null){
+                try{
+                    internalResolver.stop();
+                }catch (Exception e){}
+            }
+            try {
+                internalResolver=Resolver.createResolver(this);
+            } catch (Exception e) {
+                Log.e(PRFX,"unable to create resolver");
+                Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
+            }
+        }
         initializeDiscoveryListener();
         ArrayList<Target> items=new ArrayList<>();
         adapter.setItems(items);
@@ -240,6 +243,15 @@ public class MainActivity extends AppCompatActivity {
         startSequence++; //stops timer
         synchronized (this){
             resolveQueue.clear();
+        }
+        if (!useAndroidQuery) {
+            if (internalResolver != null) {
+                try {
+                    internalResolver.stop();
+                } catch (Exception e) {
+                }
+                internalResolver=null;
+            }
         }
     }
 

@@ -128,6 +128,7 @@ public class Resolver implements Runnable{
                 Log.e(LPRFX,"exception in receive",e);
             }
         }
+        Log.i(LPRFX,"resolver thread finished");
     }
 
     public void resolveService(final NsdServiceInfo service){
@@ -155,5 +156,7 @@ public class Resolver implements Runnable{
 
     public void stop(){
         socket.close();
+        waitingServices.clear();
+        hostAddresses.clear();
     }
 }
