@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
     private long lastResolveStart=0;
     private boolean resolveRunning=false;
+    private long resolveSequence=0;
 
 
     static class Target{
@@ -121,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
                 switch (msg.what){
                     case ADD_SERVICE_MSG:
                         addTarget((Target)msg.obj);
+                        resolveNext();
                         break;
                     case REMOVE_SERVICE_MSG:
                         removeService((String)msg.obj);
@@ -197,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
         scanButton.setText(R.string.stop);
         spinner.setVisibility(View.VISIBLE);
         startSequence++;
+        resolveSequence++;
         if (discoveryActive) {
             nsdManager.stopServiceDiscovery(discoveryListener);
             discoveryActive=false;
@@ -209,6 +212,10 @@ public class MainActivity extends AppCompatActivity {
                 SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
         discoveryActive=true;
         startTimer();
+        synchronized (this){
+            resolveQueue.clear();
+            resolveRunning=false;
+        }
     }
     private void stopScan(){
         if (discoveryActive) {
@@ -218,6 +225,9 @@ public class MainActivity extends AppCompatActivity {
         scanButton.setText(R.string.scan);
         spinner.setVisibility(View.INVISIBLE);
         startSequence++; //stops timer
+        synchronized (this){
+            resolveQueue.clear();
+        }
     }
 
     private void addTarget(Target target){
@@ -245,9 +255,44 @@ public class MainActivity extends AppCompatActivity {
         resolveQueue.add(service);
     }
 
-    private synchronized void resolveDone(){
+    private synchronized boolean resolveDone(long sequence){
+        Log.i(PRFX,"resolve unlock s="+sequence+", rs="+resolveSequence);
+        if (sequence != resolveSequence) return false;
         resolveRunning=false;
+        return true;
     }
+
+    static class Resolver implements NsdManager.ResolveListener {
+        private MainActivity activity;
+        private long sequence;
+
+        Resolver(MainActivity activity, long sequence) {
+            this.activity = activity;
+            this.sequence = sequence;
+        }
+
+        @Override
+        public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+            activity.resolveDone(sequence);
+            Log.e(PRFX, "resolve failed for " + nsdServiceInfo.getServiceName() + ": " + Integer.toString(i));
+        }
+
+        @Override
+        public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
+            Target target = new Target();
+            target.name = nsdServiceInfo.getServiceName();
+            target.host = nsdServiceInfo.getHost().getHostName();
+            try {
+                target.uri = new URI("http", null, nsdServiceInfo.getHost().getHostAddress(), nsdServiceInfo.getPort(), null, null, null);
+            } catch (URISyntaxException e) {
+                Log.e(PRFX, e.getMessage());
+            }
+            Message targetMessage = activity.handler.obtainMessage(ADD_SERVICE_MSG, target);
+            boolean rt=activity.resolveDone(sequence);
+            Log.i(PRFX, "resolve success for " + nsdServiceInfo.getServiceName()+" with sequence "+sequence+" unlocked="+rt);
+            targetMessage.sendToTarget();
+        }
+    };
 
     private synchronized void resolveNext(){
         if (resolveQueue.size()<1 ) return;
@@ -255,34 +300,16 @@ public class MainActivity extends AppCompatActivity {
         if (resolveRunning){
             if ((lastResolveStart+RESOLVE_TIMEOUT) < now){
                 resolveRunning=false;
+                Log.e(PRFX,"resolve timed out, trying next");
             }
             else return;
         }
+        resolveSequence++;
         NsdServiceInfo service=resolveQueue.remove(0);
+        Log.i(PRFX,"start resolve for "+service.getServiceName()+ " with sequence "+resolveSequence);
         resolveRunning=true;
         lastResolveStart=now;
-        nsdManager.resolveService(service, new NsdManager.ResolveListener() {
-            @Override
-            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                resolveDone();
-                Log.e(PRFX,"resolve failed for "+nsdServiceInfo.getServiceName()+": "+Integer.toString(i));
-            }
-
-            @Override
-            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                resolveDone();
-                Target target=new Target();
-                target.name=nsdServiceInfo.getServiceName();
-                target.host=nsdServiceInfo.getHost().getHostName();
-                try {
-                    target.uri=new URI("http",null,nsdServiceInfo.getHost().getHostAddress(),nsdServiceInfo.getPort(),null,null,null);
-                    Message targetMessage=handler.obtainMessage(ADD_SERVICE_MSG,target);
-                    targetMessage.sendToTarget();
-                } catch (URISyntaxException e) {
-                    Log.e(PRFX,e.getMessage());
-                }
-            }
-        });
+        nsdManager.resolveService(service, new Resolver(this,resolveSequence));
     }
     public void initializeDiscoveryListener() {
 
