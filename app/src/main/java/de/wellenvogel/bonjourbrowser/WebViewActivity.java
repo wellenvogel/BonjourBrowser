@@ -34,6 +34,8 @@ import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.HttpAuthHandler;
 import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -181,8 +183,13 @@ public class WebViewActivity extends AppCompatActivity  {
         long contentLength;
         String cookies;
     }
+    static class UploadRequest{
+        ValueCallback<Uri[]> filePathCallback;
+    }
+    private UploadRequest uploadRequest=null;
     private DownloadRequest downloadRequest=null;
     private static final int REQUEST_DOWNLOAD=1;
+    private static final int REQUEST_UPLOAD=2;
     private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
         ParcelFileDescriptor pfd = getContentResolver().
                 openFileDescriptor(contentUri, "w");
@@ -242,16 +249,27 @@ public class WebViewActivity extends AppCompatActivity  {
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (requestCode != REQUEST_DOWNLOAD) return;
-        DownloadRequest rq=downloadRequest;
-        downloadRequest=null;
-        if( resultCode != Activity.RESULT_OK) return;
-        if (rq == null || data == null) return;
-        Uri uri=data.getData();
-        try {
-            downloadFile(uri,rq);
-        } catch (FileNotFoundException e) {
-            Log.e("WebView","unable to download",e);
+        if (requestCode == REQUEST_DOWNLOAD) {
+            DownloadRequest rq = downloadRequest;
+            downloadRequest = null;
+            if (resultCode != Activity.RESULT_OK) return;
+            if (rq == null || data == null) return;
+            Uri uri = data.getData();
+            try {
+                downloadFile(uri, rq);
+            } catch (FileNotFoundException e) {
+                Log.e("WebView", "unable to download", e);
+            }
+        }
+        if (requestCode == REQUEST_UPLOAD){
+            UploadRequest rq=uploadRequest;
+            uploadRequest=null;
+            if (rq == null) return;
+            if (resultCode != Activity.RESULT_OK || data == null) {
+                rq.filePathCallback.onReceiveValue(null);
+                return;
+            }
+            rq.filePathCallback.onReceiveValue(new Uri[]{data.getData()});
         }
     }
 
@@ -328,14 +346,22 @@ public class WebViewActivity extends AppCompatActivity  {
                     Toast.makeText(getApplicationContext(), "no permission", Toast.LENGTH_LONG).show();
                 }
             }
-            /*
-            public void onDownloadStart(String url, String userAgent,
-                                        String contentDisposition, String mimetype,
-                                        long contentLength) {
-                Intent i = new Intent(Intent.ACTION_VIEW);
-                i.setData(Uri.parse(url));
-                startActivity(i);
-            }*/
+        });
+        webView.setWebChromeClient(new WebChromeClient(){
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                Intent i = null;
+                if (uploadRequest != null) return false;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    i = fileChooserParams.createIntent();
+                    UploadRequest rq=new UploadRequest();
+                    rq.filePathCallback=filePathCallback;
+                    uploadRequest=rq;
+                    startActivityForResult(Intent.createChooser(i, "SelectFile"), REQUEST_UPLOAD);
+                    return true;
+                }
+                return false;
+            }
         });
         Bundle b = getIntent().getExtras();
         serviceUri=(URI)b.get(URL_PARAM);
