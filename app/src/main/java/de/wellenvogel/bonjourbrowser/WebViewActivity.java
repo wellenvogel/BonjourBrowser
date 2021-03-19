@@ -54,6 +54,7 @@ import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.security.Permission;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -339,6 +340,11 @@ public class WebViewActivity extends AppCompatActivity  {
                     Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType(mimeType);
+                    if (contentDisposition.indexOf("filename*=") >= 0){
+                        contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
+                        contentDisposition= URLDecoder.decode(contentDisposition,"utf-8");
+                        contentDisposition="attachment; filename="+contentDisposition;
+                    }
                     intent.putExtra(Intent.EXTRA_TITLE, URLUtil.guessFileName(url, contentDisposition, mimeType));
                     startActivityForResult(intent, REQUEST_DOWNLOAD);
                 }catch (Throwable t){
