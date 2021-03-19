@@ -1,13 +1,24 @@
 package de.wellenvogel.bonjourbrowser;
 
+import android.Manifest;
+import android.app.DownloadManager;
+import android.app.Instrumentation;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.PermissionChecker;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceManager;
@@ -16,20 +27,27 @@ import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
 import android.webkit.HttpAuthHandler;
+import android.webkit.URLUtil;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebViewDatabase;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.security.Permission;
 import java.util.HashMap;
 import java.util.HashSet;
 
-public class WebViewActivity extends AppCompatActivity {
+import static android.support.v4.content.PermissionChecker.PERMISSION_GRANTED;
+
+public class WebViewActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
 
     static final String URL_PARAM="url";
     static final String NAME_PARAM="name";
@@ -145,6 +163,12 @@ public class WebViewActivity extends AppCompatActivity {
         screenBrightnessHandler.sendMessage(msg);
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -195,6 +219,47 @@ public class WebViewActivity extends AppCompatActivity {
         String databasePath = webView.getContext().getDir("databases",
                 Context.MODE_PRIVATE).getPath();
         webView.getSettings().setDatabasePath(databasePath);
+        webView.setDownloadListener(new DownloadListener() {
+            public void onDownloadStart(String url, String userAgent, String
+                    contentDisposition, String mimeType, long contentLength) {
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (WebViewActivity.this.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
+                        WebViewActivity.this.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1);
+                        return;
+                    }
+                }
+                try {
+                    DownloadManager.Request request = new
+                            DownloadManager.Request(Uri.parse(url));
+
+                    request.setMimeType(mimeType);
+                    //------------------------COOKIE!!------------------------
+                    String cookies = CookieManager.getInstance().getCookie(url);
+                    request.addRequestHeader("cookie", cookies);
+                    //------------------------COOKIE!!------------------------
+                    request.addRequestHeader("User-Agent", userAgent);
+                    request.setDescription("Downloading file...");
+                    request.setTitle(URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    request.allowScanningByMediaScanner();
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    dm.enqueue(request);
+                    Toast.makeText(getApplicationContext(), "Downloading File", Toast.LENGTH_LONG).show();
+                }catch (Throwable t){
+                    Toast.makeText(getApplicationContext(), "no permission", Toast.LENGTH_LONG).show();
+                }
+            }
+            /*
+            public void onDownloadStart(String url, String userAgent,
+                                        String contentDisposition, String mimetype,
+                                        long contentLength) {
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setData(Uri.parse(url));
+                startActivity(i);
+            }*/
+        });
         Bundle b = getIntent().getExtras();
         serviceUri=(URI)b.get(URL_PARAM);
         serviceName=b.getString(NAME_PARAM);
