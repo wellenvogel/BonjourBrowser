@@ -27,7 +27,9 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -42,11 +44,11 @@ public class MainActivity extends AppCompatActivity {
     private NsdManager.DiscoveryListener discoveryListener;
     private NsdManager nsdManager;
     private static String PRFX="BonjourBrowser";
-    private static final String SERVICE_TYPE="_http._tcp.";
+    public static final String SERVICE_TYPE="_http._tcp.";
     private boolean discoveryActive=false;
-    private Handler handler;
+    Handler handler;
     private long startSequence=0;
-    private static final int ADD_SERVICE_MSG=1;
+    static final int ADD_SERVICE_MSG=1;
     private static final int REMOVE_SERVICE_MSG=2;
     private static final int TIMER_MSG=3;
     private static final long DISCOVERY_TIMER=1000;
@@ -56,13 +58,11 @@ public class MainActivity extends AppCompatActivity {
     private long lastResolveStart=0;
     private boolean resolveRunning=false;
     private long resolveSequence=0;
+    private boolean useAndroidQuery=false;
+    private Resolver internalResolver;
 
 
-    static class Target{
-        public String name;
-        public String host;
-        public URI uri;
-    }
+
     static class TargetAdapter extends ArrayAdapter<Target>{
 
         public TargetAdapter(@NonNull Context context) {
@@ -115,6 +115,19 @@ public class MainActivity extends AppCompatActivity {
                 handleItemClick(i);
             }
         });
+        if (!useAndroidQuery){
+            if (internalResolver != null){
+                try{
+                    internalResolver.stop();
+                }catch (Exception e){}
+            }
+            try {
+                internalResolver=Resolver.createResolver(this);
+            } catch (Exception e) {
+                Log.e(PRFX,"unable to create resolver");
+                Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
+            }
+        }
         nsdManager = (NsdManager)getSystemService(Context.NSD_SERVICE);
         handler=new Handler(Looper.getMainLooper()){
             @Override
@@ -252,7 +265,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void resolveService(final NsdServiceInfo service) {
-        resolveQueue.add(service);
+        if (useAndroidQuery) {
+            resolveQueue.add(service);
+        }
+        else{
+            internalResolver.resolveService(service);
+        }
     }
 
     private synchronized boolean resolveDone(long sequence){
@@ -262,11 +280,11 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    static class Resolver implements NsdManager.ResolveListener {
+    static class AndroidResolver implements NsdManager.ResolveListener {
         private MainActivity activity;
         private long sequence;
 
-        Resolver(MainActivity activity, long sequence) {
+        AndroidResolver(MainActivity activity, long sequence) {
             this.activity = activity;
             this.sequence = sequence;
         }
@@ -294,6 +312,8 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+
+
     private synchronized void resolveNext(){
         if (resolveQueue.size()<1 ) return;
         long now=System.currentTimeMillis();
@@ -309,7 +329,8 @@ public class MainActivity extends AppCompatActivity {
         Log.i(PRFX,"start resolve for "+service.getServiceName()+ " with sequence "+resolveSequence);
         resolveRunning=true;
         lastResolveStart=now;
-        nsdManager.resolveService(service, new Resolver(this,resolveSequence));
+        nsdManager.resolveService(service, new AndroidResolver(this, resolveSequence));
+
     }
     public void initializeDiscoveryListener() {
 
