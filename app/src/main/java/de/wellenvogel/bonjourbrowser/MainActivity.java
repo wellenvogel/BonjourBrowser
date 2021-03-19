@@ -141,6 +141,9 @@ public class MainActivity extends AppCompatActivity {
                             stopScan();
                             scan();
                         }
+                        if (! useAndroidQuery){
+                            internalResolver.checkRetrigger();
+                        }
                         startTimer();
                         resolveNext();
                         break;
@@ -332,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
             resolveQueue.add(service);
         }
         else{
-            internalResolver.resolveService(service);
+            internalResolver.resolveService(service.getServiceName(),true);
         }
     }
 

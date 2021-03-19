@@ -27,6 +27,8 @@ import java.util.HashSet;
 import static net.straylightlabs.hola.sd.Query.MDNS_IP4_ADDRESS;
 
 public class Resolver implements Runnable{
+    static final long RETRIGGER_TIME=6000; //6s
+    static final int MAX_RETRIGGER=5;
     static class Host{
         InetAddress address;
         String name;
@@ -49,11 +51,39 @@ public class Resolver implements Runnable{
     DatagramSocket socket;
     HashMap<String,Host> hostAddresses=new HashMap<>();
     HashSet<SrvRecord> waitingServices=new HashSet<>();
+    static class ServiceRequest{
+        String name;
+        long requestTime;
+        int retries=0;
+        ServiceRequest(String name){
+            this.name=name;
+            requestTime=System.currentTimeMillis();
+        }
+        boolean expired(long now){
+            if ((requestTime+RETRIGGER_TIME) < now) return true;
+            return false;
+        }
+    }
+    final HashSet<ServiceRequest> openRequests=new HashSet<>();
 
     public Resolver(MainActivity activity) throws SocketException, UnknownHostException {
         socket=new DatagramSocket();
         mdnsGroupIPv4 = InetAddress.getByName(MDNS_IP4_ADDRESS);
         this.activity=activity;
+    }
+
+    public void checkRetrigger(){
+        long now=System.currentTimeMillis();
+        synchronized (openRequests){
+            for (ServiceRequest r:openRequests){
+                if (r.expired(now) && r.retries < MAX_RETRIGGER){
+                    Log.i(LPRFX,"retrigger query for "+r.name);
+                    resolveService(r.name,false);
+                    r.requestTime=now;
+                    r.retries++;
+                }
+            }
+        }
     }
 
     public static Resolver createResolver(MainActivity activity) throws SocketException, UnknownHostException {
@@ -67,6 +97,15 @@ public class Resolver implements Runnable{
         Target target=new Target();
         target.name=srv.getName().substring(0,srv.getName().length()-SUFFIX.length()-1);
         target.host=srv.getTarget();
+        synchronized (openRequests){
+            ArrayList<ServiceRequest> finished=new ArrayList<>();
+            for (ServiceRequest r:openRequests){
+                if (r.name.equals(target.name)) finished.add(r);
+            }
+            for (ServiceRequest r: finished){
+                openRequests.remove(r);
+            }
+        }
         try {
             target.uri = new URI("http", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
             android.os.Message targetMessage = activity.handler.obtainMessage(MainActivity.ADD_SERVICE_MSG, target);
@@ -131,8 +170,16 @@ public class Resolver implements Runnable{
         Log.i(LPRFX,"resolver thread finished");
     }
 
-    public void resolveService(final NsdServiceInfo service){
-        Question q= new Question(service.getServiceName()+"."+SUFFIX, Question.QType.SRV, Question.QClass.IN);
+    private Question serviceQuestion(String name){
+        return new Question(name+"."+SUFFIX, Question.QType.SRV, Question.QClass.IN);
+    }
+    public void resolveService(String name,boolean storeRequest){
+        Question q= serviceQuestion(name);
+        if (storeRequest){
+            synchronized (openRequests){
+                openRequests.add(new ServiceRequest(name));
+            }
+        }
         Thread st=new Thread(new Runnable() {
             @Override
             public void run() {
@@ -158,5 +205,6 @@ public class Resolver implements Runnable{
         socket.close();
         waitingServices.clear();
         hostAddresses.clear();
+        openRequests.clear();
     }
 }
