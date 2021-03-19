@@ -1,6 +1,7 @@
 package de.wellenvogel.bonjourbrowser;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.DownloadManager;
 import android.app.Instrumentation;
 import android.app.ProgressDialog;
@@ -10,11 +11,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -39,15 +42,23 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URI;
+import java.net.URL;
 import java.security.Permission;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import static android.support.v4.content.PermissionChecker.PERMISSION_GRANTED;
 
-public class WebViewActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
+public class WebViewActivity extends AppCompatActivity  {
 
     static final String URL_PARAM="url";
     static final String NAME_PARAM="name";
@@ -162,11 +173,86 @@ public class WebViewActivity extends AppCompatActivity implements ActivityCompat
         Message msg=screenBrightnessHandler.obtainMessage(percent);
         screenBrightnessHandler.sendMessage(msg);
     }
+    static class DownloadRequest{
+        String url;
+        String userAgent;
+        String contentDisposition;
+        String mimeType;
+        long contentLength;
+        String cookies;
+    }
+    private DownloadRequest downloadRequest=null;
+    private static final int REQUEST_DOWNLOAD=1;
+    private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
+        ParcelFileDescriptor pfd = getContentResolver().
+                openFileDescriptor(contentUri, "w");
+        if (pfd == null){
+            throw new FileNotFoundException("unable to open");
+        }
+        final FileOutputStream fileOutput =
+                new FileOutputStream(pfd.getFileDescriptor());
+        Toast.makeText(this,"downloading...",Toast.LENGTH_LONG).show();
+        new AsyncTask<String, Void, String>() {
+            String SDCard;
 
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+            }
 
+            @Override
+            protected String doInBackground(String... params) {
+                try {
+                    URL url = new URL(rq.url);
+                    HttpURLConnection urlConnection = null;
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.setRequestProperty("Cookie",rq.cookies);
+                    urlConnection.setRequestProperty("User-Agent",rq.userAgent);
+                    urlConnection.setDoOutput(true);
+                    urlConnection.connect();
+                    InputStream inputStream = null;
+                    inputStream = urlConnection.getInputStream();
+                    byte[] buffer = new byte[10240];
+                    int count;
+                    long total = 0;
+                    while ((count = inputStream.read(buffer)) != -1) {
+                        total += count;
+                        fileOutput.write(buffer, 0, count);
+                    }
+                    fileOutput.flush();
+                    fileOutput.close();
+                    inputStream.close();
+                } catch (Exception e){
+                    return "error";
+                }
+                return "ok";
+            }
+            @Override
+            protected void onPostExecute(final String result) {
+                if (result.equals("error")){
+                    Toast.makeText(WebViewActivity.this,"download error",Toast.LENGTH_LONG).show();
+                }
+                else{
+                    Toast.makeText(WebViewActivity.this,"saved",Toast.LENGTH_SHORT).show();
+                }
+            }
+
+        }.execute();
+    }
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode != REQUEST_DOWNLOAD) return;
+        DownloadRequest rq=downloadRequest;
+        downloadRequest=null;
+        if( resultCode != Activity.RESULT_OK) return;
+        if (rq == null || data == null) return;
+        Uri uri=data.getData();
+        try {
+            downloadFile(uri,rq);
+        } catch (FileNotFoundException e) {
+            Log.e("WebView","unable to download",e);
+        }
     }
 
     @Override
@@ -222,32 +308,23 @@ public class WebViewActivity extends AppCompatActivity implements ActivityCompat
         webView.setDownloadListener(new DownloadListener() {
             public void onDownloadStart(String url, String userAgent, String
                     contentDisposition, String mimeType, long contentLength) {
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (WebViewActivity.this.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-                        WebViewActivity.this.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1);
-                        return;
-                    }
-                }
+                if (downloadRequest != null) return;
                 try {
-                    DownloadManager.Request request = new
-                            DownloadManager.Request(Uri.parse(url));
-
-                    request.setMimeType(mimeType);
-                    //------------------------COOKIE!!------------------------
-                    String cookies = CookieManager.getInstance().getCookie(url);
-                    request.addRequestHeader("cookie", cookies);
-                    //------------------------COOKIE!!------------------------
-                    request.addRequestHeader("User-Agent", userAgent);
-                    request.setDescription("Downloading file...");
-                    request.setTitle(URLUtil.guessFileName(url, contentDisposition, mimeType));
-                    request.allowScanningByMediaScanner();
-                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, URLUtil.guessFileName(url, contentDisposition, mimeType));
-                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-                    dm.enqueue(request);
-                    Toast.makeText(getApplicationContext(), "Downloading File", Toast.LENGTH_LONG).show();
+                    DownloadRequest rq=new DownloadRequest();
+                    rq.url=url;
+                    rq.userAgent=userAgent;
+                    rq.contentDisposition=contentDisposition;
+                    rq.mimeType=mimeType;
+                    rq.contentLength=contentLength;
+                    rq.cookies=CookieManager.getInstance().getCookie(url);
+                    downloadRequest=rq;
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType(mimeType);
+                    intent.putExtra(Intent.EXTRA_TITLE, URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    startActivityForResult(intent, REQUEST_DOWNLOAD);
                 }catch (Throwable t){
+                    downloadRequest=null;
                     Toast.makeText(getApplicationContext(), "no permission", Toast.LENGTH_LONG).show();
                 }
             }
