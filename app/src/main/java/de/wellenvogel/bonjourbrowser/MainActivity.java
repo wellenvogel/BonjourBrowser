@@ -30,9 +30,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private long resolveSequence=0;
     private boolean useAndroidQuery=false;
     private Resolver internalResolver;
-
+    private HashSet<InetAddress> interfaceAddresses=new HashSet<>();
 
 
     static class TargetAdapter extends ArrayAdapter<Target>{
@@ -115,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 handleItemClick(i);
             }
         });
+        checkNetworkChanged();
         nsdManager = (NsdManager)getSystemService(Context.NSD_SERVICE);
         handler=new Handler(Looper.getMainLooper()){
             @Override
@@ -130,6 +136,11 @@ public class MainActivity extends AppCompatActivity {
                     case TIMER_MSG:
                         Long seq=(Long)msg.obj;
                         if (seq != startSequence) return;
+                        if (checkNetworkChanged()){
+                            Toast.makeText(MainActivity.this,R.string.ifchange,Toast.LENGTH_LONG).show();
+                            stopScan();
+                            scan();
+                        }
                         startTimer();
                         resolveNext();
                         break;
@@ -169,6 +180,46 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         scan();
+    }
+
+    boolean checkNetworkChanged(){
+        HashSet<InetAddress> newAddresses=new HashSet<>();
+        try {
+            Enumeration<NetworkInterface> intfs = NetworkInterface.getNetworkInterfaces();
+            while (intfs.hasMoreElements()) {
+                NetworkInterface intf = intfs.nextElement();
+                Enumeration<InetAddress> ifaddresses = intf.getInetAddresses();
+                while (ifaddresses.hasMoreElements()) {
+                    InetAddress ifaddress = ifaddresses.nextElement();
+                    newAddresses.add(ifaddress);
+                }
+            }
+        } catch (SocketException e1) {
+        }
+        boolean rt=false;
+        if (newAddresses.size() != this.interfaceAddresses.size()){
+            rt=true;
+        }
+        else{
+            for (InetAddress addr:newAddresses){
+                if (! this.interfaceAddresses.contains(addr)){
+                    rt=true;
+                    break;
+                }
+            }
+            if (! rt){
+                for (InetAddress addr:this.interfaceAddresses){
+                    if (! newAddresses.contains(addr)){
+                        rt=true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (rt){
+            this.interfaceAddresses=newAddresses;
+        }
+        return rt;
     }
 
     private void startTimer(){
