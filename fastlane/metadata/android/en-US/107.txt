@@ -1,0 +1,7 @@
+New functions:
+- use an internal resolver that should work much faster and more reliable in most situations
+  although it is limited to ipv4 and does not handle priorities and fallbacks.
+  https://github.com/fflewddur/hola
+  You can switch back to the old implementation via settings
+- correct handling of the dim js API
+- the internal browser can now handle file downloads and uploads (uploads from Android 5 upwards)

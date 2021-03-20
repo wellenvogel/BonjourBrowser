@@ -1,0 +1,8 @@
+Neue Funktionen:
+- Nutzung einer eigenen MDNS Implementierung die in den meisten Fällen schneller und
+  zuverlässiger arbeiten sollte.
+  https://github.com/fflewddur/hola
+  Diese ist allerdings auf IPv4 beschränkt und beachtet keine Prioritäten oder Fallbacks.
+  In den Settings kann auf die alte Implementierung zurück gewechselt werden.
+- Das java script dim API sollte jetzt korrekt funktionieren.
+- Der interne Browser kann jetzt Dateien herunterladen und hochladen (Hochladen ab Android 5).
