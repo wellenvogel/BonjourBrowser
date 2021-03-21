@@ -1,0 +1,3 @@
+Bugfix:
+- internal browser does not work when using multiple times
+- show version in title

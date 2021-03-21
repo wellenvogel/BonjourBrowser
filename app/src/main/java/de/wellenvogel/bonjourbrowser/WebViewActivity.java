@@ -402,6 +402,12 @@ public class WebViewActivity extends AppCompatActivity  {
     }
 
     @Override
+    protected void onDestroy() {
+        webView.destroy();
+        super.onDestroy();
+    }
+
+    @Override
     public void onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack();

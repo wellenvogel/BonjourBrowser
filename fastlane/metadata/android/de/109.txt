@@ -1,0 +1,3 @@
+Fehlerkorrektur:
+- interner Browser funktioniert nicht bei mehrmaliger Nutzung
+- Anzeige der Version im Titel

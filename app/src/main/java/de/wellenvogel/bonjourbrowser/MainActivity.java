@@ -1,11 +1,13 @@
 package de.wellenvogel.bonjourbrowser;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -97,6 +99,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setTitle("BonjourBrowser "+ BuildConfig.VERSION_NAME);
         setContentView(R.layout.activity_main);
         scanButton=(Button)findViewById(R.id.scan);
         scanButton.setOnClickListener(new View.OnClickListener() {
