@@ -1,0 +1,5 @@
+Fehlerkorrektur:
+- Download großer Dateien bricht ab
+Erweiterungen:
+- Download Fortschrittsanzeige mit Cancel
+- Löschen von Downloads bei Fehlern

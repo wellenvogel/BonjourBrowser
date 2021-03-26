@@ -1,0 +1,5 @@
+Bugfix:
+- download of large files is interrupted
+Extensions:
+- download progress display with cancel option
+- delete download files on error

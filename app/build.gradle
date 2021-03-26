@@ -16,8 +16,8 @@ android {
         applicationId "de.wellenvogel.bonjourbrowser"
         minSdkVersion 19
         targetSdkVersion 29
-        versionCode 109
-        versionName "1.9"
+        versionCode 110
+        versionName "1.10"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
