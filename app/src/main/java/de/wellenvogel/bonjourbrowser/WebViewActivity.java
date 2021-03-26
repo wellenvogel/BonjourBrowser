@@ -192,7 +192,7 @@ public class WebViewActivity extends AppCompatActivity  {
     private static final int REQUEST_DOWNLOAD=1;
     private static final int REQUEST_UPLOAD=2;
     private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
-        ParcelFileDescriptor pfd = getContentResolver().
+        final ParcelFileDescriptor pfd = getContentResolver().
                 openFileDescriptor(contentUri, "w");
         if (pfd == null){
             throw new FileNotFoundException("unable to open");
@@ -210,6 +210,7 @@ public class WebViewActivity extends AppCompatActivity  {
 
             @Override
             protected String doInBackground(String... params) {
+                long total = 0;
                 try {
                     URL url = new URL(rq.url);
                     HttpURLConnection urlConnection = null;
@@ -217,13 +218,12 @@ public class WebViewActivity extends AppCompatActivity  {
                     urlConnection.setRequestMethod("GET");
                     urlConnection.setRequestProperty("Cookie",rq.cookies);
                     urlConnection.setRequestProperty("User-Agent",rq.userAgent);
-                    urlConnection.setDoOutput(true);
+                    //urlConnection.setDoOutput(true);
                     urlConnection.connect();
                     InputStream inputStream = null;
                     inputStream = urlConnection.getInputStream();
                     byte[] buffer = new byte[10240];
                     int count;
-                    long total = 0;
                     while ((count = inputStream.read(buffer)) != -1) {
                         total += count;
                         fileOutput.write(buffer, 0, count);
@@ -231,7 +231,12 @@ public class WebViewActivity extends AppCompatActivity  {
                     fileOutput.flush();
                     fileOutput.close();
                     inputStream.close();
+                    pfd.close();
                 } catch (Exception e){
+                    try {
+                        pfd.close();
+                    }catch (Throwable t){}
+                    Log.e("Downloader","error downloading file after "+total+" bytes ",e);
                     return "error";
                 }
                 return "ok";
@@ -339,6 +344,7 @@ public class WebViewActivity extends AppCompatActivity  {
                     downloadRequest=rq;
                     Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION+Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                     intent.setType(mimeType);
                     if (contentDisposition.indexOf("filename*=") >= 0){
                         contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
