@@ -17,4 +17,5 @@
     <string name="ifchange">Network changed</string>
     <string name="channel_name">DownloadNotifications</string>
     <string name="channel_description">Notifications when downloading files</string>
+    <string name="download_running">Download already running</string>
 </resources>

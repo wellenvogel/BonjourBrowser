@@ -29,6 +29,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.PermissionChecker;
+import android.support.v4.provider.DocumentFile;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceManager;
@@ -88,6 +89,9 @@ public class WebViewActivity extends AppCompatActivity  {
     private JavaScriptApi jsApi;
     private float currentBrigthness=1;
     int downloadCancelSequence=0;
+    NotificationManager notificationManager;
+    NotificationCompat.Builder notificationBuilder;
+    boolean downloadRunning=false;
     private void doSetBrightness(float newBrightness){
         Window w=getWindow();
         WindowManager.LayoutParams lp=w.getAttributes();
@@ -212,6 +216,11 @@ public class WebViewActivity extends AppCompatActivity  {
     private static final int REQUEST_DOWNLOAD=1;
     private static final int REQUEST_UPLOAD=2;
     private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
+        if (downloadRunning){
+            Toast.makeText(this, getText(R.string.download_running),Toast.LENGTH_LONG).show();
+            return;
+        }
+        downloadRunning=true;
         showDownloadNotification(rq.fileName);
         final int startSequence=downloadCancelSequence;
         final ParcelFileDescriptor pfd = getContentResolver().
@@ -222,14 +231,12 @@ public class WebViewActivity extends AppCompatActivity  {
         final FileOutputStream fileOutput =
                 new FileOutputStream(pfd.getFileDescriptor());
         Toast.makeText(this,"downloading...",Toast.LENGTH_LONG).show();
-        new AsyncTask<String, Void, String>() {
-            String SDCard;
+        new AsyncTask<String, Integer, String>() {
 
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
             }
-
             @Override
             protected String doInBackground(String... params) {
                 long total = 0;
@@ -254,6 +261,10 @@ public class WebViewActivity extends AppCompatActivity  {
                             inputStream.close();
                             throw new Exception("aborted");
                         }
+                        if (rq.contentLength != 0){
+                            long percent=(total * 100)/rq.contentLength;
+                            publishProgress((int)percent);
+                        }
                     }
                     fileOutput.flush();
                     fileOutput.close();
@@ -270,17 +281,24 @@ public class WebViewActivity extends AppCompatActivity  {
             }
             @Override
             protected void onPostExecute(final String result) {
-                NotificationManager notificationManager =
-                        (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 notificationManager.cancelAll();
+                notificationBuilder=null;
                 if (!result.equals("ok")){
+                    try {
+                        DocumentFile.fromSingleUri(WebViewActivity.this, contentUri).delete();
+                    }catch (Throwable t){}
                     Toast.makeText(WebViewActivity.this,result,Toast.LENGTH_LONG).show();
                 }
                 else{
                     Toast.makeText(WebViewActivity.this,"saved",Toast.LENGTH_SHORT).show();
                 }
+                downloadRunning=false;
             }
 
+            @Override
+            protected void onProgressUpdate(Integer... values) {
+                updateDownloadNotification(values[0]);
+            }
         }.execute();
     }
     @Override
@@ -292,7 +310,7 @@ public class WebViewActivity extends AppCompatActivity  {
             if (rq == null || data == null) return;
             Uri uri = data.getData();
             try {
-                downloadFile(uri, rq);
+                downloadFile(uri,rq);
             } catch (FileNotFoundException e) {
                 Log.e("WebView", "unable to download", e);
             }
@@ -308,26 +326,32 @@ public class WebViewActivity extends AppCompatActivity  {
             rq.filePathCallback.onReceiveValue(new Uri[]{data.getData()});
         }
     }
+    private void updateDownloadNotification(int percent){
+        NotificationCompat.Builder builder=notificationBuilder;
+        if (builder == null) return;
+        builder.setProgress(100,percent,false);
+        notificationManager.notify(1, builder.build());
+    }
     private void showDownloadNotification(String name){
         Intent action1Intent = new Intent()
                 .setAction(ACTION_CANCEL);
         PendingIntent action1PendingIntent = PendingIntent.getBroadcast(this,0,action1Intent,0);
-        NotificationCompat.Builder notificationBuilder =
+        notificationBuilder =
                 new NotificationCompat.Builder(this,MainActivity.CHANNEL_ID)
                         .setSmallIcon(R.drawable.ic_icon_bw)
                         .setContentTitle("BonjourBrowser download")
                         .setContentText(name)
+                        .setProgress(100,0,false)
                         .setAutoCancel(false)
                         .addAction(new NotificationCompat.Action(R.drawable.ic_icon_bw,
                                 "Cancel", action1PendingIntent));
-        NotificationManager notificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(1, notificationBuilder.build());
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         registerReceiver(new MyReceiver(this),new IntentFilter(ACTION_CANCEL));
+        notificationManager =(NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         jsApi=new JavaScriptApi(this);
         getSupportActionBar().hide();
         webView=new WebView(this);
@@ -377,7 +401,10 @@ public class WebViewActivity extends AppCompatActivity  {
         webView.setDownloadListener(new DownloadListener() {
             public void onDownloadStart(String url, String userAgent, String
                     contentDisposition, String mimeType, long contentLength) {
-                if (downloadRequest != null) return;
+                if (downloadRequest != null || downloadRunning) {
+                    Toast.makeText(WebViewActivity.this, getText(R.string.download_running),Toast.LENGTH_LONG).show();
+                    return;
+                }
                 try {
                     if (contentDisposition.indexOf("filename*=") >= 0){
                         contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
