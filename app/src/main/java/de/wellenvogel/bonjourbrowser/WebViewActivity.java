@@ -4,10 +4,15 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.app.Instrumentation;
+import android.app.IntentService;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -21,6 +26,8 @@ import android.os.ParcelFileDescriptor;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.PermissionChecker;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -70,6 +77,7 @@ public class WebViewActivity extends AppCompatActivity  {
     static final String PREF_HIDE_NAVIGATION="hideNavigation";
     static final String PREF_ALLOW_DIM="allowDim";
     static final String PREF_TEXT_ZOOM="textZoom";
+    private static final String ACTION_CANCEL ="de.wellenvogel.bonjourbrowser.cancel" ;
 
 
     private WebView webView;
@@ -79,11 +87,22 @@ public class WebViewActivity extends AppCompatActivity  {
     private boolean clearHistory=false;
     private JavaScriptApi jsApi;
     private float currentBrigthness=1;
+    int downloadCancelSequence=0;
     private void doSetBrightness(float newBrightness){
         Window w=getWindow();
         WindowManager.LayoutParams lp=w.getAttributes();
         lp.screenBrightness=newBrightness;
         w.setAttributes(lp);
+    }
+    static class MyReceiver extends BroadcastReceiver {
+        WebViewActivity activity;
+        MyReceiver(WebViewActivity a){
+            activity=a;
+        }
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            activity.downloadCancelSequence++;
+        }
     }
     private Handler screenBrightnessHandler = new Handler(){
         @Override
@@ -183,6 +202,7 @@ public class WebViewActivity extends AppCompatActivity  {
         String mimeType;
         long contentLength;
         String cookies;
+        String fileName;
     }
     static class UploadRequest{
         ValueCallback<Uri[]> filePathCallback;
@@ -192,6 +212,8 @@ public class WebViewActivity extends AppCompatActivity  {
     private static final int REQUEST_DOWNLOAD=1;
     private static final int REQUEST_UPLOAD=2;
     private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
+        showDownloadNotification(rq.fileName);
+        final int startSequence=downloadCancelSequence;
         final ParcelFileDescriptor pfd = getContentResolver().
                 openFileDescriptor(contentUri, "w");
         if (pfd == null){
@@ -218,7 +240,6 @@ public class WebViewActivity extends AppCompatActivity  {
                     urlConnection.setRequestMethod("GET");
                     urlConnection.setRequestProperty("Cookie",rq.cookies);
                     urlConnection.setRequestProperty("User-Agent",rq.userAgent);
-                    //urlConnection.setDoOutput(true);
                     urlConnection.connect();
                     InputStream inputStream = null;
                     inputStream = urlConnection.getInputStream();
@@ -227,6 +248,12 @@ public class WebViewActivity extends AppCompatActivity  {
                     while ((count = inputStream.read(buffer)) != -1) {
                         total += count;
                         fileOutput.write(buffer, 0, count);
+                        if (startSequence != downloadCancelSequence){
+                            fileOutput.close();
+                            pfd.close();
+                            inputStream.close();
+                            throw new Exception("aborted");
+                        }
                     }
                     fileOutput.flush();
                     fileOutput.close();
@@ -237,14 +264,17 @@ public class WebViewActivity extends AppCompatActivity  {
                         pfd.close();
                     }catch (Throwable t){}
                     Log.e("Downloader","error downloading file after "+total+" bytes ",e);
-                    return "error";
+                    return "error: "+e.getMessage();
                 }
                 return "ok";
             }
             @Override
             protected void onPostExecute(final String result) {
-                if (result.equals("error")){
-                    Toast.makeText(WebViewActivity.this,"download error",Toast.LENGTH_LONG).show();
+                NotificationManager notificationManager =
+                        (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                notificationManager.cancelAll();
+                if (!result.equals("ok")){
+                    Toast.makeText(WebViewActivity.this,result,Toast.LENGTH_LONG).show();
                 }
                 else{
                     Toast.makeText(WebViewActivity.this,"saved",Toast.LENGTH_SHORT).show();
@@ -278,11 +308,26 @@ public class WebViewActivity extends AppCompatActivity  {
             rq.filePathCallback.onReceiveValue(new Uri[]{data.getData()});
         }
     }
-
+    private void showDownloadNotification(String name){
+        Intent action1Intent = new Intent()
+                .setAction(ACTION_CANCEL);
+        PendingIntent action1PendingIntent = PendingIntent.getBroadcast(this,0,action1Intent,0);
+        NotificationCompat.Builder notificationBuilder =
+                new NotificationCompat.Builder(this,MainActivity.CHANNEL_ID)
+                        .setSmallIcon(R.drawable.ic_icon_bw)
+                        .setContentTitle("BonjourBrowser download")
+                        .setContentText(name)
+                        .setAutoCancel(false)
+                        .addAction(new NotificationCompat.Action(R.drawable.ic_icon_bw,
+                                "Cancel", action1PendingIntent));
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(1, notificationBuilder.build());
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
+        registerReceiver(new MyReceiver(this),new IntentFilter(ACTION_CANCEL));
         jsApi=new JavaScriptApi(this);
         getSupportActionBar().hide();
         webView=new WebView(this);
@@ -334,6 +379,11 @@ public class WebViewActivity extends AppCompatActivity  {
                     contentDisposition, String mimeType, long contentLength) {
                 if (downloadRequest != null) return;
                 try {
+                    if (contentDisposition.indexOf("filename*=") >= 0){
+                        contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
+                        contentDisposition= URLDecoder.decode(contentDisposition,"utf-8");
+                        contentDisposition="attachment; filename="+contentDisposition;
+                    }
                     DownloadRequest rq=new DownloadRequest();
                     rq.url=url;
                     rq.userAgent=userAgent;
@@ -341,17 +391,13 @@ public class WebViewActivity extends AppCompatActivity  {
                     rq.mimeType=mimeType;
                     rq.contentLength=contentLength;
                     rq.cookies=CookieManager.getInstance().getCookie(url);
+                    rq.fileName=URLUtil.guessFileName(url, contentDisposition, mimeType);
                     downloadRequest=rq;
                     Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION+Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                     intent.setType(mimeType);
-                    if (contentDisposition.indexOf("filename*=") >= 0){
-                        contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
-                        contentDisposition= URLDecoder.decode(contentDisposition,"utf-8");
-                        contentDisposition="attachment; filename="+contentDisposition;
-                    }
-                    intent.putExtra(Intent.EXTRA_TITLE, URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    intent.putExtra(Intent.EXTRA_TITLE, rq.fileName);
                     startActivityForResult(intent, REQUEST_DOWNLOAD);
                 }catch (Throwable t){
                     downloadRequest=null;

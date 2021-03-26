@@ -15,4 +15,6 @@
     <string name="authentication">Authentication required</string>
     <string name="textZoom">Text Zoom</string>
     <string name="ifchange">Network changed</string>
+    <string name="channel_name">DownloadNotifications</string>
+    <string name="channel_description">Notifications when downloading files</string>
 </resources>
