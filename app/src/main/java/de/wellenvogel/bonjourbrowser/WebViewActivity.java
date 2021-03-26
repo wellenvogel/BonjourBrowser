@@ -92,6 +92,7 @@ public class WebViewActivity extends AppCompatActivity  {
     NotificationManager notificationManager;
     NotificationCompat.Builder notificationBuilder;
     boolean downloadRunning=false;
+    InputStream downloadStream;
     private void doSetBrightness(float newBrightness){
         Window w=getWindow();
         WindowManager.LayoutParams lp=w.getAttributes();
@@ -106,6 +107,9 @@ public class WebViewActivity extends AppCompatActivity  {
         @Override
         public void onReceive(Context context, Intent intent) {
             activity.downloadCancelSequence++;
+            try{
+                activity.downloadStream.close();
+            }catch (Throwable t){}
         }
     }
     private Handler screenBrightnessHandler = new Handler(){
@@ -248,17 +252,18 @@ public class WebViewActivity extends AppCompatActivity  {
                     urlConnection.setRequestProperty("Cookie",rq.cookies);
                     urlConnection.setRequestProperty("User-Agent",rq.userAgent);
                     urlConnection.connect();
-                    InputStream inputStream = null;
-                    inputStream = urlConnection.getInputStream();
+                    downloadStream= null;
+                    downloadStream = urlConnection.getInputStream();
                     byte[] buffer = new byte[10240];
                     int count;
-                    while ((count = inputStream.read(buffer)) != -1) {
+                    while ((count = downloadStream.read(buffer)) != -1) {
                         total += count;
                         fileOutput.write(buffer, 0, count);
                         if (startSequence != downloadCancelSequence){
                             fileOutput.close();
                             pfd.close();
-                            inputStream.close();
+                            downloadStream.close();
+                            downloadStream=null;
                             throw new Exception("aborted");
                         }
                         if (rq.contentLength != 0){
@@ -268,7 +273,8 @@ public class WebViewActivity extends AppCompatActivity  {
                     }
                     fileOutput.flush();
                     fileOutput.close();
-                    inputStream.close();
+                    downloadStream.close();
+                    downloadStream=null;
                     pfd.close();
                 } catch (Exception e){
                     try {
