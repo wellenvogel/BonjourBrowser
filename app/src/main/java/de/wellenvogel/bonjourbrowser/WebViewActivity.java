@@ -1,10 +1,6 @@
 package de.wellenvogel.bonjourbrowser;
 
-import android.Manifest;
 import android.app.Activity;
-import android.app.DownloadManager;
-import android.app.Instrumentation;
-import android.app.IntentService;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
@@ -14,21 +10,14 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
-import android.support.v4.content.PermissionChecker;
 import android.support.v4.provider.DocumentFile;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -47,27 +36,19 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebViewDatabase;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.security.Permission;
 import java.util.HashMap;
-import java.util.HashSet;
-
-import static android.support.v4.content.PermissionChecker.PERMISSION_GRANTED;
 
 public class WebViewActivity extends AppCompatActivity  {
 
@@ -79,6 +60,7 @@ public class WebViewActivity extends AppCompatActivity  {
     static final String PREF_ALLOW_DIM="allowDim";
     static final String PREF_TEXT_ZOOM="textZoom";
     private static final String ACTION_CANCEL ="de.wellenvogel.bonjourbrowser.cancel" ;
+    private static final String INDEX_NAME="dlindex";
 
 
     private WebView webView;
@@ -87,12 +69,10 @@ public class WebViewActivity extends AppCompatActivity  {
     private ProgressDialog pd;
     private boolean clearHistory=false;
     private JavaScriptApi jsApi;
-    private float currentBrigthness=1;
-    int downloadCancelSequence=0;
+    private int downloadIndex=0;
     NotificationManager notificationManager;
-    NotificationCompat.Builder notificationBuilder;
-    boolean downloadRunning=false;
-    InputStream downloadStream;
+
+    private Handler mHandler=new Handler();
     private void doSetBrightness(float newBrightness){
         Window w=getWindow();
         WindowManager.LayoutParams lp=w.getAttributes();
@@ -106,12 +86,16 @@ public class WebViewActivity extends AppCompatActivity  {
         }
         @Override
         public void onReceive(Context context, Intent intent) {
-            activity.downloadCancelSequence++;
-            try{
-                activity.downloadStream.close();
-            }catch (Throwable t){}
+            int index=intent.getIntExtra(INDEX_NAME,-1);
+            DownloadHandler handler=activity.runningDownloads.get(index);
+            if (handler != null){
+                try{
+                    handler.stop();
+                }catch (Throwable t){}
+            }
         }
     }
+    private MyReceiver receiver=new MyReceiver(this);
     private Handler screenBrightnessHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -126,7 +110,6 @@ public class WebViewActivity extends AppCompatActivity  {
                 if (newBrightness < 0.01f) newBrightness = 0.01f;
                 if (newBrightness > 1) newBrightness = 1;
             }
-            currentBrigthness=newBrightness;
             doSetBrightness(newBrightness);
         }
     };
@@ -215,97 +198,141 @@ public class WebViewActivity extends AppCompatActivity  {
     static class UploadRequest{
         ValueCallback<Uri[]> filePathCallback;
     }
+    private final HashMap<Integer,DownloadHandler> runningDownloads=new HashMap<>();
+    synchronized private int nextDownloadIndex(){
+        downloadIndex++;
+        return downloadIndex;
+    }
+    class DownloadHandler implements Runnable{
+        Uri uri;
+        DownloadRequest rq;
+        int index;
+        boolean shouldStop;
+        Thread thread;
+        NotificationCompat.Builder notificationBuilder;
+        DownloadHandler(Uri uri,DownloadRequest rq,int index){
+            this.uri=uri;
+            this.rq=rq;
+            this.index=index;
+            shouldStop=false;
+        }
+        void start(){
+            thread=new Thread(this);
+            thread.setDaemon(true);
+            thread.start();
+        }
+        void stop(){
+            shouldStop=true;
+            try{
+                thread.interrupt();
+            }catch(Throwable t){}
+        }
+        private void toast(String msg){
+            WebViewActivity.this.mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(WebViewActivity.this,msg,Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        private void showDownloadNotification(String name){
+            Intent action1Intent = new Intent()
+                    .setAction(ACTION_CANCEL)
+                    .putExtra(INDEX_NAME,index);
+            PendingIntent action1PendingIntent = PendingIntent.getBroadcast(WebViewActivity.this,index,action1Intent,0);
+            notificationBuilder =
+                    new NotificationCompat.Builder(WebViewActivity.this,MainActivity.CHANNEL_ID)
+                            .setSmallIcon(R.drawable.ic_icon_bw)
+                            .setContentTitle("BonjourBrowser download")
+                            .setContentText(name)
+                            .setProgress(100,0,false)
+                            .setAutoCancel(false)
+                            .addAction(new NotificationCompat.Action(R.drawable.ic_icon_bw,
+                                    "Cancel", action1PendingIntent));
+            notificationManager.notify(index, notificationBuilder.build());
+        }
+        private void updateDownloadNotification(int percent){
+            NotificationCompat.Builder builder=notificationBuilder;
+            if (builder == null) return;
+            builder.setProgress(100,percent,false);
+            notificationManager.notify(index, builder.build());
+        }
+        @Override
+        public void run() {
+            long total = 0;
+            ParcelFileDescriptor pfd=null;
+            FileOutputStream fileOutput=null;
+            try {
+                pfd = getContentResolver().
+                        openFileDescriptor(uri, "w");
+                if (pfd == null) {
+                    throw new FileNotFoundException("unable to open");
+                }
+                fileOutput = new FileOutputStream(pfd.getFileDescriptor());
+                showDownloadNotification(rq.fileName);
+                toast("downloading...");
+                URL url = new URL(rq.url);
+                HttpURLConnection urlConnection = null;
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.setRequestProperty("Cookie", rq.cookies);
+                urlConnection.setRequestProperty("User-Agent", rq.userAgent);
+                urlConnection.connect();
+                InputStream downloadStream = null;
+                downloadStream = urlConnection.getInputStream();
+                byte[] buffer = new byte[10240];
+                int count;
+                while ((count = downloadStream.read(buffer)) != -1) {
+                    total += count;
+                    fileOutput.write(buffer, 0, count);
+                    if (shouldStop) {
+
+                        downloadStream.close();
+                        throw new Exception("aborted");
+                    }
+                    if (rq.contentLength != 0) {
+                        long percent = (total * 100) / rq.contentLength;
+                        updateDownloadNotification((int) percent);
+                    }
+                }
+                fileOutput.flush();
+            } catch(Throwable t){
+                try {
+                    if (fileOutput != null) fileOutput.close();
+                    if (pfd != null) pfd.close();
+                }catch(Throwable x){}
+                try {
+                    DocumentFile.fromSingleUri(WebViewActivity.this, uri).delete();
+                }catch (Throwable x){}
+                WebViewActivity.this.runningDownloads.remove(index);
+                if (shouldStop){
+                    toast(rq.fileName+" download aborted");
+                }
+                else {
+                    toast(rq.fileName + " download error " + t.getMessage());
+                }
+                notificationManager.cancel(index);    notificationManager.cancel(index);
+                return;
+            }
+            try {
+                if (fileOutput != null) fileOutput.close();
+                if (pfd != null) pfd.close();
+            }catch(Throwable x){}
+            WebViewActivity.this.runningDownloads.remove(index);
+            toast("saved "+rq.fileName);
+            notificationManager.cancel(index);
+        }
+    }
+
     private UploadRequest uploadRequest=null;
     private DownloadRequest downloadRequest=null;
     private static final int REQUEST_DOWNLOAD=1;
     private static final int REQUEST_UPLOAD=2;
     private void downloadFile(Uri contentUri,DownloadRequest rq) throws FileNotFoundException {
-        if (downloadRunning){
-            Toast.makeText(this, getText(R.string.download_running),Toast.LENGTH_LONG).show();
-            return;
-        }
-        downloadRunning=true;
-        showDownloadNotification(rq.fileName);
-        final int startSequence=downloadCancelSequence;
-        final ParcelFileDescriptor pfd = getContentResolver().
-                openFileDescriptor(contentUri, "w");
-        if (pfd == null){
-            throw new FileNotFoundException("unable to open");
-        }
-        final FileOutputStream fileOutput =
-                new FileOutputStream(pfd.getFileDescriptor());
-        Toast.makeText(this,"downloading...",Toast.LENGTH_LONG).show();
-        new AsyncTask<String, Integer, String>() {
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-            }
-            @Override
-            protected String doInBackground(String... params) {
-                long total = 0;
-                try {
-                    URL url = new URL(rq.url);
-                    HttpURLConnection urlConnection = null;
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    urlConnection.setRequestMethod("GET");
-                    urlConnection.setRequestProperty("Cookie",rq.cookies);
-                    urlConnection.setRequestProperty("User-Agent",rq.userAgent);
-                    urlConnection.connect();
-                    downloadStream= null;
-                    downloadStream = urlConnection.getInputStream();
-                    byte[] buffer = new byte[10240];
-                    int count;
-                    while ((count = downloadStream.read(buffer)) != -1) {
-                        total += count;
-                        fileOutput.write(buffer, 0, count);
-                        if (startSequence != downloadCancelSequence){
-                            fileOutput.close();
-                            pfd.close();
-                            downloadStream.close();
-                            downloadStream=null;
-                            throw new Exception("aborted");
-                        }
-                        if (rq.contentLength != 0){
-                            long percent=(total * 100)/rq.contentLength;
-                            publishProgress((int)percent);
-                        }
-                    }
-                    fileOutput.flush();
-                    fileOutput.close();
-                    downloadStream.close();
-                    downloadStream=null;
-                    pfd.close();
-                } catch (Exception e){
-                    try {
-                        pfd.close();
-                    }catch (Throwable t){}
-                    Log.e("Downloader","error downloading file after "+total+" bytes ",e);
-                    return "error: "+e.getMessage();
-                }
-                return "ok";
-            }
-            @Override
-            protected void onPostExecute(final String result) {
-                notificationManager.cancelAll();
-                notificationBuilder=null;
-                if (!result.equals("ok")){
-                    try {
-                        DocumentFile.fromSingleUri(WebViewActivity.this, contentUri).delete();
-                    }catch (Throwable t){}
-                    Toast.makeText(WebViewActivity.this,result,Toast.LENGTH_LONG).show();
-                }
-                else{
-                    Toast.makeText(WebViewActivity.this,"saved",Toast.LENGTH_SHORT).show();
-                }
-                downloadRunning=false;
-            }
-
-            @Override
-            protected void onProgressUpdate(Integer... values) {
-                updateDownloadNotification(values[0]);
-            }
-        }.execute();
+        int index=nextDownloadIndex();
+        DownloadHandler handler=new DownloadHandler(contentUri,rq,index);
+        runningDownloads.put(index,handler);
+        handler.start();
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -332,31 +359,12 @@ public class WebViewActivity extends AppCompatActivity  {
             rq.filePathCallback.onReceiveValue(new Uri[]{data.getData()});
         }
     }
-    private void updateDownloadNotification(int percent){
-        NotificationCompat.Builder builder=notificationBuilder;
-        if (builder == null) return;
-        builder.setProgress(100,percent,false);
-        notificationManager.notify(1, builder.build());
-    }
-    private void showDownloadNotification(String name){
-        Intent action1Intent = new Intent()
-                .setAction(ACTION_CANCEL);
-        PendingIntent action1PendingIntent = PendingIntent.getBroadcast(this,0,action1Intent,0);
-        notificationBuilder =
-                new NotificationCompat.Builder(this,MainActivity.CHANNEL_ID)
-                        .setSmallIcon(R.drawable.ic_icon_bw)
-                        .setContentTitle("BonjourBrowser download")
-                        .setContentText(name)
-                        .setProgress(100,0,false)
-                        .setAutoCancel(false)
-                        .addAction(new NotificationCompat.Action(R.drawable.ic_icon_bw,
-                                "Cancel", action1PendingIntent));
-        notificationManager.notify(1, notificationBuilder.build());
-    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        registerReceiver(new MyReceiver(this),new IntentFilter(ACTION_CANCEL));
+        registerReceiver(receiver,new IntentFilter(ACTION_CANCEL));
         notificationManager =(NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         jsApi=new JavaScriptApi(this);
         getSupportActionBar().hide();
@@ -407,7 +415,7 @@ public class WebViewActivity extends AppCompatActivity  {
         webView.setDownloadListener(new DownloadListener() {
             public void onDownloadStart(String url, String userAgent, String
                     contentDisposition, String mimeType, long contentLength) {
-                if (downloadRequest != null || downloadRunning) {
+                if (downloadRequest != null ) {
                     Toast.makeText(WebViewActivity.this, getText(R.string.download_running),Toast.LENGTH_LONG).show();
                     return;
                 }
@@ -488,6 +496,7 @@ public class WebViewActivity extends AppCompatActivity  {
 
     @Override
     protected void onDestroy() {
+        unregisterReceiver(receiver);
         webView.destroy();
         super.onDestroy();
     }
