@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
@@ -42,6 +44,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
@@ -73,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     private HashSet<NetworkInterface> interfaces=new HashSet<NetworkInterface>();
     private HashSet<Resolver> internalResolvers=new HashSet<Resolver>();
     private HashSet<InetAddress> interfaceAddresses=new HashSet<>();
+    private HashMap<NetworkInterface, Network> interfaceMappings=new HashMap<>();
     private ConnectivityManager connectivityManager;
 
 
@@ -260,6 +264,22 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         if (rt){
+            HashMap<NetworkInterface,Network> newMappings=new HashMap<>();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                for (Network n:connectivityManager.getAllNetworks()){
+                    LinkProperties props=connectivityManager.getLinkProperties(n);
+                    for (NetworkInterface intf:newInterfaces){
+                        try {
+                            if (intf.getName().equals(props.getInterfaceName())) {
+                                newMappings.put(intf, n);
+                            }
+                        }catch (Throwable t){
+                            Log.e(PRFX,"unable to compare network interface names",t);
+                        }
+                    }
+                }
+                this.interfaceMappings=newMappings;
+            }
             this.interfaceAddresses=newAddresses;
             this.interfaces=newInterfaces;
         }
@@ -276,11 +296,20 @@ public class MainActivity extends AppCompatActivity {
         if (target == null) return;
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
-        Boolean runInternal=sharedPref.getBoolean(PREF_INTERNAL,false);
+        boolean runInternal=sharedPref.getBoolean(PREF_INTERNAL,false);
         if (runInternal){
             Intent i = new Intent(this, WebViewActivity.class);
             i.putExtra(WebViewActivity.URL_PARAM, target.uri);
             i.putExtra(WebViewActivity.NAME_PARAM, target.name);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                if (target.intf != null) {
+                    Network nw = interfaceMappings.get(target.intf);
+                    if (nw != null) {
+                        Log.i(PRFX,"binding to network "+target.intf.getDisplayName());
+                        connectivityManager.bindProcessToNetwork(nw);
+                    }
+                }
+            }
             startActivity(i);
             return;
         }
@@ -291,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scan(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             connectivityManager.bindProcessToNetwork(null);
         }
         scanButton.setText(R.string.stop);

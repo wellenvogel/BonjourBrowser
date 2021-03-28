@@ -112,6 +112,7 @@ public class Resolver implements Runnable{
         Target target=new Target();
         target.name=srv.getName().substring(0,srv.getName().length()-SUFFIX.length()-1);
         target.host=srv.getTarget();
+        target.intf=intf;
         synchronized (openRequests){
             ArrayList<ServiceRequest> finished=new ArrayList<>();
             for (ServiceRequest r:openRequests){
