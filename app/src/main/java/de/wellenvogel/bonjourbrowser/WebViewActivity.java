@@ -243,7 +243,7 @@ public class WebViewActivity extends AppCompatActivity  {
             notificationBuilder =
                     new NotificationCompat.Builder(WebViewActivity.this,MainActivity.CHANNEL_ID)
                             .setSmallIcon(R.drawable.ic_icon_bw)
-                            .setContentTitle("BonjourBrowser download")
+                            .setContentTitle("download")
                             .setContentText(name)
                             .setProgress(100,0,false)
                             .setAutoCancel(false)

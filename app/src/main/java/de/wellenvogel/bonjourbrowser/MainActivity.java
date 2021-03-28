@@ -1,11 +1,11 @@
 package de.wellenvogel.bonjourbrowser;
 
-import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
@@ -33,8 +33,9 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URI;
@@ -69,8 +70,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean resolveRunning=false;
     private long resolveSequence=0;
     private boolean useAndroidQuery=false;
-    private Resolver internalResolver;
+    private HashSet<NetworkInterface> interfaces=new HashSet<NetworkInterface>();
+    private HashSet<Resolver> internalResolvers=new HashSet<Resolver>();
     private HashSet<InetAddress> interfaceAddresses=new HashSet<>();
+    private ConnectivityManager connectivityManager;
 
 
     static class TargetAdapter extends ArrayAdapter<Target>{
@@ -119,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        connectivityManager=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         setTitle("BonjourBrowser "+ BuildConfig.VERSION_NAME);
         setContentView(R.layout.activity_main);
         scanButton=(Button)findViewById(R.id.scan);
@@ -165,7 +169,9 @@ public class MainActivity extends AppCompatActivity {
                             scan();
                         }
                         if (! useAndroidQuery){
-                            internalResolver.checkRetrigger();
+                            for (Resolver r:internalResolvers) {
+                                r.checkRetrigger();
+                            }
                         }
                         startTimer();
                         resolveNext();
@@ -211,10 +217,20 @@ public class MainActivity extends AppCompatActivity {
 
     boolean checkNetworkChanged(){
         HashSet<InetAddress> newAddresses=new HashSet<>();
+        HashSet<NetworkInterface> newInterfaces=new HashSet<NetworkInterface>();
         try {
             Enumeration<NetworkInterface> intfs = NetworkInterface.getNetworkInterfaces();
             while (intfs.hasMoreElements()) {
                 NetworkInterface intf = intfs.nextElement();
+                boolean hasIp4=false;
+                for (InterfaceAddress a:intf.getInterfaceAddresses()){
+                    if (a.getAddress() instanceof Inet4Address) {
+                        hasIp4=true;
+                        break;
+                    }
+                }
+                if (!intf.supportsMulticast() || ! intf.isUp() || ! hasIp4) continue;
+                newInterfaces.add(intf);
                 Enumeration<InetAddress> ifaddresses = intf.getInetAddresses();
                 while (ifaddresses.hasMoreElements()) {
                     InetAddress ifaddress = ifaddresses.nextElement();
@@ -245,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (rt){
             this.interfaceAddresses=newAddresses;
+            this.interfaces=newInterfaces;
         }
         return rt;
     }
@@ -274,6 +291,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scan(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            connectivityManager.bindProcessToNetwork(null);
+        }
         scanButton.setText(R.string.stop);
         spinner.setVisibility(View.VISIBLE);
         startSequence++;
@@ -286,13 +306,22 @@ public class MainActivity extends AppCompatActivity {
                 PreferenceManager.getDefaultSharedPreferences(this);
         useAndroidQuery=!sharedPref.getBoolean("internalResolver",true);
         if (!useAndroidQuery){
-            if (internalResolver != null){
-                try{
-                    internalResolver.stop();
-                }catch (Exception e){}
+            for (Resolver r : internalResolvers) {
+                try {
+                    r.stop();
+                } catch (Exception e) {
+                }
             }
+            internalResolvers.clear();
             try {
-                internalResolver=Resolver.createResolver(this);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+                    for (NetworkInterface intf:interfaces){
+                        internalResolvers.add(Resolver.createResolver(this,intf));
+                    }
+                }
+                else {
+                    internalResolvers.add(Resolver.createResolver(this,null));
+                }
             } catch (Exception e) {
                 Log.e(PRFX,"unable to create resolver");
                 Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
@@ -323,13 +352,13 @@ public class MainActivity extends AppCompatActivity {
             resolveQueue.clear();
         }
         if (!useAndroidQuery) {
-            if (internalResolver != null) {
+            for (Resolver r : internalResolvers) {
                 try {
-                    internalResolver.stop();
+                    r.stop();
                 } catch (Exception e) {
                 }
-                internalResolver=null;
             }
+            internalResolvers.clear();
         }
     }
 
@@ -359,7 +388,9 @@ public class MainActivity extends AppCompatActivity {
             resolveQueue.add(service);
         }
         else{
-            internalResolver.resolveService(service.getServiceName(),true);
+            for (Resolver r:internalResolvers) {
+                r.resolveService(service.getServiceName(), true);
+            }
         }
     }
 

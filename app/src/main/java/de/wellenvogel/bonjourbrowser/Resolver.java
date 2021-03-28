@@ -1,6 +1,7 @@
 package de.wellenvogel.bonjourbrowser;
 
-import android.net.nsd.NsdServiceInfo;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 import net.straylightlabs.hola.dns.ARecord;
@@ -9,22 +10,28 @@ import net.straylightlabs.hola.dns.Message;
 import net.straylightlabs.hola.dns.Record;
 import net.straylightlabs.hola.dns.Response;
 import net.straylightlabs.hola.dns.SrvRecord;
-import net.straylightlabs.hola.sd.Query;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.ProtocolFamily;
+import java.net.SocketAddress;
+import java.net.SocketOption;
+import java.net.SocketOptions;
+import java.net.StandardProtocolFamily;
+import java.net.StandardSocketOptions;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import static net.straylightlabs.hola.sd.Query.MDNS_IP4_ADDRESS;
+import static net.straylightlabs.hola.sd.Query.MDNS_PORT;
 
 public class Resolver implements Runnable{
     static final long RETRIGGER_TIME=6000; //6s
@@ -47,8 +54,9 @@ public class Resolver implements Runnable{
     static final String LPRFX="InternalReceiver";
     static final String SUFFIX=MainActivity.SERVICE_TYPE+Domain.LOCAL.getName();
     MainActivity activity;
-    private InetAddress mdnsGroupIPv4;
-    DatagramSocket socket;
+    private SocketAddress mdnsGroupIPv4;
+    private NetworkInterface intf;
+    DatagramChannel channel;
     HashMap<String,Host> hostAddresses=new HashMap<>();
     HashSet<SrvRecord> waitingServices=new HashSet<>();
     static class ServiceRequest{
@@ -66,9 +74,16 @@ public class Resolver implements Runnable{
     }
     final HashSet<ServiceRequest> openRequests=new HashSet<>();
 
-    public Resolver(MainActivity activity) throws SocketException, UnknownHostException {
-        socket=new DatagramSocket();
-        mdnsGroupIPv4 = InetAddress.getByName(MDNS_IP4_ADDRESS);
+    public Resolver(MainActivity activity,NetworkInterface intf) throws IOException {
+        this.intf=intf;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && intf != null) {
+            channel =DatagramChannel.open(StandardProtocolFamily.INET);
+            channel.setOption(StandardSocketOptions.IP_MULTICAST_IF,intf);
+        }
+        else{
+            channel =DatagramChannel.open();
+        }
+        mdnsGroupIPv4 = new InetSocketAddress(InetAddress.getByName(MDNS_IP4_ADDRESS),MDNS_PORT);
         this.activity=activity;
     }
 
@@ -86,8 +101,8 @@ public class Resolver implements Runnable{
         }
     }
 
-    public static Resolver createResolver(MainActivity activity) throws SocketException, UnknownHostException {
-        Resolver r=new Resolver(activity);
+    public static Resolver createResolver(MainActivity activity,NetworkInterface intf) throws IOException {
+        Resolver r=new Resolver(activity,intf);
         Thread thr=new Thread(r);
         thr.setDaemon(true);
         thr.start();
@@ -117,11 +132,14 @@ public class Resolver implements Runnable{
     }
     @Override
     public void run() {
-        while (!socket.isClosed()){
-            byte[] responseBuffer = new byte[Message.MAX_LENGTH];
-            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+        while (channel.isOpen()){
+            ByteBuffer responseBuffer = ByteBuffer.allocate(Message.MAX_LENGTH);
             try {
-                socket.receive(responsePacket);
+                channel.receive(responseBuffer);
+                responseBuffer.flip();
+                byte[] bytes = new byte[responseBuffer.limit()];
+                responseBuffer.get(bytes, 0, responseBuffer.limit());
+                DatagramPacket responsePacket=new DatagramPacket(bytes,bytes.length);
                 Response resp=Response.createFrom(responsePacket);
                 Log.i(LPRFX,"response: "+resp);
                 boolean hasA=false;
@@ -163,7 +181,7 @@ public class Resolver implements Runnable{
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 Log.e(LPRFX,"exception in receive",e);
             }
         }
@@ -196,13 +214,12 @@ public class Resolver implements Runnable{
 
     public void sendQuestion(Question question) throws IOException {
         ByteBuffer buffer = question.getBuffer();
-        DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.position(), mdnsGroupIPv4, Query.MDNS_PORT);
-        packet.setAddress(mdnsGroupIPv4);
-        socket.send(packet);
+        buffer.flip();
+        channel.send(buffer,mdnsGroupIPv4);
     }
 
-    public void stop(){
-        socket.close();
+    public void stop() throws IOException {
+        channel.close();
         waitingServices.clear();
         hostAddresses.clear();
         openRequests.clear();
