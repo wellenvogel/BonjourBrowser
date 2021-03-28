@@ -1,0 +1,5 @@
+Bugfix:
+- internal resolver does not work if Wifi w/o internet and LTE at the same time
+Extensions:
+- cancel for loading in internal browser
+- from Android7: "Lock to Network" - use the correct network if Wifi and LTE at the same time for page loading

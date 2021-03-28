@@ -1,0 +1,5 @@
+Fehlerkorrektur:
+- interner Resolver arbeitet nicht mit Wifi (ohne INternet) und LTE gleichzeitig
+Erweiterungen:
+- Cancel beim Laden im internen Browser
+- Ab Android7: "Lock to Network" - Routing zum richtigen Netzwerk bei Wifi (ohne Internet) und LTE gleichzeitig
