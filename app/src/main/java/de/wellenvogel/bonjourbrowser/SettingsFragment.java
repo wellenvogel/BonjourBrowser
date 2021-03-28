@@ -1,33 +1,19 @@
 package de.wellenvogel.bonjourbrowser;
 
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
-import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceFragment;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.preference.Preference;
 import android.support.v7.preference.PreferenceFragmentCompat;
-import android.support.v7.preference.PreferenceManager;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
-import android.webkit.CookieManager;
-import android.webkit.WebStorage;
-import android.webkit.WebViewDatabase;
-import android.widget.TextView;
 
 import java.io.File;
 
 /**
  * A simple {@link Fragment} subclass.
  */
-public class SettingsFragment extends PreferenceFragmentCompat {
+public class SettingsFragment extends PreferenceFragmentCompat implements SharedPreferences.OnSharedPreferenceChangeListener {
 
 
     public SettingsFragment() {
@@ -60,7 +46,37 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             }
         });
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N){
+            Preference p=findPreference(MainActivity.PREF_LOCK_NET);
+            if (p != null) getPreferenceScreen().removePreference(p);
+        }
     }
 
 
+    @Override
+    public void addPreferencesFromResource(int preferencesResId) {
+        super.addPreferencesFromResource(preferencesResId);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        getPreferenceManager().getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getPreferenceManager().getSharedPreferences().unregisterOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            Preference p=findPreference(MainActivity.PREF_LOCK_NET);
+            boolean enable=sharedPreferences.getBoolean(MainActivity.PREF_INTERNAL_RESOLVER,false)
+                    && sharedPreferences.getBoolean(MainActivity.PREF_INTERNAL,false);
+            if (p != null) p.setEnabled(enable);
+        }
+    }
 }

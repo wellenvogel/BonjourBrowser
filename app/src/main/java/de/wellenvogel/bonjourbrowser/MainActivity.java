@@ -51,6 +51,9 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     static final String CHANNEL_ID = "main";
+    static final String PREF_INTERNAL_RESOLVER = "internalResolver";
+    static final String PREF_LOCK_NET = "lockNet";
+    static final String PREF_INTERNAL="internalBrowser";
     private ListView list;
     private ProgressBar spinner;
     private TargetAdapter adapter;
@@ -67,7 +70,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int TIMER_MSG=3;
     private static final long DISCOVERY_TIMER=1000;
     private static final long RESOLVE_TIMEOUT=30000; //restart resolve after this time anyway
-    private static final String PREF_INTERNAL="internalBrowser";
     private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
     private long lastResolveStart=0;
     private boolean resolveRunning=false;
@@ -301,7 +303,8 @@ public class MainActivity extends AppCompatActivity {
             Intent i = new Intent(this, WebViewActivity.class);
             i.putExtra(WebViewActivity.URL_PARAM, target.uri);
             i.putExtra(WebViewActivity.NAME_PARAM, target.name);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                sharedPref.getBoolean(PREF_LOCK_NET,false)) {
                 if (target.intf != null) {
                     Network nw = interfaceMappings.get(target.intf);
                     if (nw != null) {
@@ -333,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
         }
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
-        useAndroidQuery=!sharedPref.getBoolean("internalResolver",true);
+        useAndroidQuery=!sharedPref.getBoolean(PREF_INTERNAL_RESOLVER,true);
         if (!useAndroidQuery){
             for (Resolver r : internalResolvers) {
                 try {

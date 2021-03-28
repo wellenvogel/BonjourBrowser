@@ -24,6 +24,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.preference.PreferenceManager;
 import android.text.InputType;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -368,7 +369,17 @@ public class WebViewActivity extends AppCompatActivity  {
         notificationManager =(NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         jsApi=new JavaScriptApi(this);
         getSupportActionBar().hide();
-        webView=new WebView(this);
+        webView=new WebView(this){
+            @Override
+            public boolean onKeyDown(int keyCode, KeyEvent event) {
+                if (keyCode == KeyEvent.KEYCODE_BACK && pd.isShowing()){
+                    webView.loadUrl("about:blank");
+                    pd.hide();
+                    finish();
+                }
+                return super.onKeyDown(keyCode, event);
+            }
+        };
         setContentView(webView);
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
@@ -466,9 +477,21 @@ public class WebViewActivity extends AppCompatActivity  {
         serviceUri=(URI)b.get(URL_PARAM);
         serviceName=b.getString(NAME_PARAM);
         clearHistory=true;
-        pd = ProgressDialog.show(this, "", getResources().getString(R.string.loading)+" "+serviceName, true);
+        pd = new ProgressDialog(this);
+        pd.setMessage(getResources().getString(R.string.loading) + " " + serviceName);
+        pd.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                webView.loadUrl("about:blank");
+                pd.hide();
+                finish();
+            }
+        });
+        pd.setCanceledOnTouchOutside(false);
+        pd.show();
         String url=serviceUri.toString();
         webView.loadUrl(url);
+        Log.i("WebView","url lading started: "+url);
     }
 
     @Override

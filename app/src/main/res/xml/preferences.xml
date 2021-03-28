@@ -28,6 +28,11 @@
         android:key="internalResolver"
         android:title="@string/internalResolver" />
     <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/lockNet"
+        android:defaultValue="true"
+        android:key="lockNet"
+        android:title="@string/lockNet" />
+    <android.support.v7.preference.SwitchPreferenceCompat
         android:id="@+id/allowDim"
         android:defaultValue="false"
         android:key="allowDim"
