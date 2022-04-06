@@ -1,0 +1,4 @@
+Erweiterungen:
+- Es können jetzt auch SSH Services gefunden werden.
+  Das erfordert einen installierten SSH client der auf ssh://... URLs reagiert(z.B. JuiceSSH)
+- Icons je nach Service Type

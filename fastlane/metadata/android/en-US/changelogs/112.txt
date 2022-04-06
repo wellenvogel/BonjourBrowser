@@ -1,0 +1,3 @@
+Extensions:
+- now it also possible to browse for SSH services.
+  This requires an installed SSh client that handles ssh://... URLs (like e.g. JuiceSSH)
