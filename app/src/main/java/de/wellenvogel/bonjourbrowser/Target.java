@@ -10,9 +10,10 @@ public class Target {
         public NetworkInterface intf;
         public ServiceDescription description;
         Target(){}
-        Target(String name, String host, URI uri){
+        Target(String name, String host, URI uri,ServiceDescription description){
             this.name=name;
             this.host=host;
             this.uri=uri;
+            this.description=description;
         }
 }

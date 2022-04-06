@@ -30,6 +30,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -81,8 +82,8 @@ public class MainActivity extends AppCompatActivity {
     private NsdManager nsdManager;
     private static String PRFX="BonjourBrowser";
     public static ServiceDescription services[]=new ServiceDescription[]{
-            new ServiceDescription("_http._tcp.","http",false),
-            new ServiceDescription("_ssh._tcp.","ssh",true)
+            new ServiceDescription("_http._tcp.","http",false,R.drawable.ic_language_black_24dp),
+            new ServiceDescription("_ssh._tcp.","ssh",true,R.drawable.ic_terminal_black_24dp)
     };
     private boolean discoveryActive=false;
     Handler handler;
@@ -120,12 +121,14 @@ public class MainActivity extends AppCompatActivity {
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             LayoutInflater inflater = (LayoutInflater) getContext()
                     .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            View rowView = inflater.inflate(android.R.layout.simple_list_item_2, parent, false);
-            TextView title=rowView.findViewById(android.R.id.text1);
+            View rowView = inflater.inflate(R.layout.list_item, parent, false);
+            TextView title=rowView.findViewById(R.id.text1);
             Target item=getItem(position);
             title.setText(item.name);
-            TextView sub=rowView.findViewById(android.R.id.text2);
+            TextView sub=rowView.findViewById(R.id.text2);
             sub.setText(item.uri.toString());
+            ImageView icon=rowView.findViewById(R.id.icon);
+            icon.setImageResource(item.description.icon);
             return rowView;
         }
     }
@@ -339,8 +342,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         else {
-            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.uri.toString()));
-            startActivity(browserIntent);
+            try {
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.uri.toString()));
+                startActivity(browserIntent);
+            }catch (Throwable t){
+                Toast.makeText(this,getString(R.string.noHandler)+": "+target.uri.toString(),Toast.LENGTH_LONG).show();
+            }
         }
     }
 
