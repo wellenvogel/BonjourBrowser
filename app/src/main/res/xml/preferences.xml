@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.v7.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:asp="http://schemas.android.com/apk/res-auto">
-
+    <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/ssh"
+        android:defaultValue="true"
+        android:key="ssh"
+        android:title="@string/prefSSH" />
     <android.support.v7.preference.SwitchPreferenceCompat
         android:id="@+id/internal"
         android:defaultValue="false"

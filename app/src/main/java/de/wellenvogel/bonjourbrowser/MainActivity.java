@@ -58,16 +58,26 @@ public class MainActivity extends AppCompatActivity {
             this.description = description;
         }
     }
+    static class ListenerEntry{
+        public NsdManager.DiscoveryListener listener;
+        public ServiceDescription description;
+
+        public ListenerEntry(NsdManager.DiscoveryListener listener, ServiceDescription description) {
+            this.listener = listener;
+            this.description = description;
+        }
+    }
 
     static final String CHANNEL_ID = "main";
     static final String PREF_INTERNAL_RESOLVER = "internalResolver";
+    static final String PREF_SSH= "ssh";
     static final String PREF_LOCK_NET = "lockNet";
     static final String PREF_INTERNAL="internalBrowser";
     private ListView list;
     private ProgressBar spinner;
     private TargetAdapter adapter;
     private Button scanButton;
-    private ArrayList<NsdManager.DiscoveryListener> discoveryListeners=new ArrayList<>();
+    private ArrayList<ListenerEntry> discoveryListeners=new ArrayList<>();
     private NsdManager nsdManager;
     private static String PRFX="BonjourBrowser";
     public static ServiceDescription services[]=new ServiceDescription[]{
@@ -343,8 +353,8 @@ public class MainActivity extends AppCompatActivity {
         startSequence++;
         resolveSequence++;
         if (discoveryActive) {
-            for (NsdManager.DiscoveryListener discoveryListener :discoveryListeners) {
-                nsdManager.stopServiceDiscovery(discoveryListener);
+            for (ListenerEntry entry :discoveryListeners) {
+                nsdManager.stopServiceDiscovery(entry.listener);
             }
             discoveryActive=false;
         }
@@ -373,13 +383,14 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
             }
         }
-        initializeDiscoveryListener();
+        boolean parseSsh=sharedPref.getBoolean(PREF_SSH,true);
+        initializeDiscoveryListener(parseSsh);
         ArrayList<Target> items=new ArrayList<>();
         adapter.setItems(items);
         Log.i(PRFX,"start discovery");
-        for (int i=0;i<services.length;i++) {
+        for (ListenerEntry entry: discoveryListeners) {
             nsdManager.discoverServices(
-                    services[i].service, NsdManager.PROTOCOL_DNS_SD, discoveryListeners.get(i));
+                    entry.description.service, NsdManager.PROTOCOL_DNS_SD, entry.listener);
         }
         discoveryActive=true;
         startTimer();
@@ -390,9 +401,9 @@ public class MainActivity extends AppCompatActivity {
     }
     private void stopScan(){
         if (discoveryActive) {
-            for (NsdManager.DiscoveryListener discoveryListener : discoveryListeners) {
+            for (ListenerEntry entry : discoveryListeners) {
                 try {
-                    nsdManager.stopServiceDiscovery(discoveryListener);
+                    nsdManager.stopServiceDiscovery(entry.listener);
                 }catch (Throwable t){
                     Log.e(PRFX,"unable to stop discovery:",t);
                 }
@@ -511,29 +522,33 @@ public class MainActivity extends AppCompatActivity {
         nsdManager.resolveService(entry.info, new AndroidResolver(this, entry.description,resolveSequence));
 
     }
-    public void initializeDiscoveryListener() {
+
+    public void initializeDiscoveryListener(boolean parseSsh) {
 
         // Instantiate a new DiscoveryListener
         discoveryListeners.clear();
-        for (ServiceDescription d : this.services) {
-            final String key=d.service;
-            final ServiceDescription description=d;
-            discoveryListeners.add(new NsdManager.DiscoveryListener() {
+        for (ServiceDescription d : services) {
+            if (d.protocol.equals("ssh") && ! parseSsh){
+                continue;
+            }
+            final String key = d.service;
+            final ServiceDescription description = d;
+            discoveryListeners.add(new ListenerEntry(new NsdManager.DiscoveryListener() {
 
                 // Called as soon as service discovery begins.
                 @Override
                 public void onDiscoveryStarted(String regType) {
-                    Log.d(PRFX, key+" Service discovery started");
+                    Log.d(PRFX, key + " Service discovery started");
                 }
 
                 @Override
                 public void onServiceFound(NsdServiceInfo service) {
                     // A service was found! Do something with it.
-                    Log.d(PRFX, key+" Service discovery success" + service);
+                    Log.d(PRFX, key + " Service discovery success" + service);
                     if (!service.getServiceType().equals(description.service)) {
                         return;
                     }
-                    resolveService(service,description);
+                    resolveService(service, description);
 
                 }
 
@@ -541,19 +556,19 @@ public class MainActivity extends AppCompatActivity {
                 public void onServiceLost(NsdServiceInfo service) {
                     // When the network service is no longer available.
                     // Internal bookkeeping code goes here.
-                    Log.e(PRFX, key+" service lost: " + service);
+                    Log.e(PRFX, key + " service lost: " + service);
                     Message targetMessage = handler.obtainMessage(REMOVE_SERVICE_MSG, service.getServiceName());
                     targetMessage.sendToTarget();
                 }
 
                 @Override
                 public void onDiscoveryStopped(String serviceType) {
-                    Log.i(PRFX, key+" Discovery stopped: " + serviceType);
+                    Log.i(PRFX, key + " Discovery stopped: " + serviceType);
                 }
 
                 @Override
                 public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-                    Log.e(PRFX, key+" Discovery failed: Error code:" + errorCode);
+                    Log.e(PRFX, key + " Discovery failed: Error code:" + errorCode);
                     stopScan();
                 }
 
@@ -562,7 +577,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.e(PRFX, "Discovery failed: Error code:" + errorCode);
                     nsdManager.stopServiceDiscovery(this);
                 }
-            });
+            }, d));
         }
     }
 

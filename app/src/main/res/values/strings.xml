@@ -19,4 +19,5 @@
     <string name="channel_description">Notifications when downloading files</string>
     <string name="download_running">Download already running</string>
     <string name="lockNet">Lock to Network</string>
+    <string name="prefSSH">Browse for SSH</string>
 </resources>
