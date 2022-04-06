@@ -1,7 +1,6 @@
 package de.wellenvogel.bonjourbrowser;
 
 import android.os.Build;
-import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 import net.straylightlabs.hola.dns.ARecord;
@@ -13,13 +12,11 @@ import net.straylightlabs.hola.dns.SrvRecord;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.ProtocolFamily;
 import java.net.SocketAddress;
-import java.net.SocketOption;
-import java.net.SocketOptions;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.URI;
@@ -61,10 +58,12 @@ public class Resolver implements Runnable{
     HashSet<SrvRecord> waitingServices=new HashSet<>();
     static class ServiceRequest{
         String name;
+        String type;
         long requestTime;
         int retries=0;
-        ServiceRequest(String name){
+        ServiceRequest(String name,String type){
             this.name=name;
+            this.type=type;
             requestTime=System.currentTimeMillis();
         }
         boolean expired(long now){
@@ -83,6 +82,7 @@ public class Resolver implements Runnable{
         else{
             channel =DatagramChannel.open();
         }
+        channel.socket().bind(new InetSocketAddress(Inet4Address.getByName("0.0.0.0"),0));
         mdnsGroupIPv4 = new InetSocketAddress(InetAddress.getByName(MDNS_IP4_ADDRESS),MDNS_PORT);
         this.activity=activity;
     }
@@ -93,7 +93,7 @@ public class Resolver implements Runnable{
             for (ServiceRequest r:openRequests){
                 if (r.expired(now) && r.retries < MAX_RETRIGGER){
                     Log.i(LPRFX,"retrigger query for "+r.name);
-                    resolveService(r.name,false);
+                    resolveService(r.name,r.type,false);
                     r.requestTime=now;
                     r.retries++;
                 }
@@ -123,11 +123,17 @@ public class Resolver implements Runnable{
             }
         }
         try {
-            target.uri = new URI("http", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
+            if (srv.getName().indexOf(MainActivity.SERVICE_TYPE) >= 0) {
+                target.uri = new URI("http", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
+            }
+            else {
+                target.uri = new URI("ssh", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
+                target.alwaysExternal=true;
+            }
             android.os.Message targetMessage = activity.handler.obtainMessage(MainActivity.ADD_SERVICE_MSG, target);
             Log.i(LPRFX, "resolve success for " + target.name+" "+target.uri);
             targetMessage.sendToTarget();
-        } catch (URISyntaxException e) {
+        } catch (Throwable e) {
             Log.e(LPRFX, e.getMessage());
         }
     }
@@ -138,6 +144,9 @@ public class Resolver implements Runnable{
             try {
                 channel.receive(responseBuffer);
                 responseBuffer.flip();
+                if (responseBuffer.limit() == 0){
+                    continue;
+                }
                 byte[] bytes = new byte[responseBuffer.limit()];
                 responseBuffer.get(bytes, 0, responseBuffer.limit());
                 DatagramPacket responsePacket=new DatagramPacket(bytes,bytes.length);
@@ -189,14 +198,14 @@ public class Resolver implements Runnable{
         Log.i(LPRFX,"resolver thread finished");
     }
 
-    private Question serviceQuestion(String name){
-        return new Question(name+"."+SUFFIX, Question.QType.SRV, Question.QClass.IN);
+    private Question serviceQuestion(String name,String type){
+        return new Question(name+"."+type+Domain.LOCAL.getName(), Question.QType.SRV, Question.QClass.IN);
     }
-    public void resolveService(String name,boolean storeRequest){
-        Question q= serviceQuestion(name);
+    public void resolveService(String name,String type,boolean storeRequest){
+        Question q= serviceQuestion(name,type);
         if (storeRequest){
             synchronized (openRequests){
-                openRequests.add(new ServiceRequest(name));
+                openRequests.add(new ServiceRequest(name,type));
             }
         }
         Thread st=new Thread(new Runnable() {

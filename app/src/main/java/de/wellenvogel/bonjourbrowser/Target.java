@@ -8,6 +8,7 @@ public class Target {
         public String host;
         public URI uri;
         public NetworkInterface intf;
+        boolean alwaysExternal=false;
         Target(){}
         Target(String name, String host, URI uri){
             this.name=name;
