@@ -49,7 +49,6 @@ public class Resolver implements Runnable{
         }
     }
     static final String LPRFX="InternalReceiver";
-    static final String SUFFIX=MainActivity.SERVICE_TYPE+Domain.LOCAL.getName();
     MainActivity activity;
     private SocketAddress mdnsGroupIPv4;
     private NetworkInterface intf;
@@ -58,12 +57,12 @@ public class Resolver implements Runnable{
     HashSet<SrvRecord> waitingServices=new HashSet<>();
     static class ServiceRequest{
         String name;
-        String type;
+        ServiceDescription description;
         long requestTime;
         int retries=0;
-        ServiceRequest(String name,String type){
+        ServiceRequest(String name,ServiceDescription description){
             this.name=name;
-            this.type=type;
+            this.description=description;
             requestTime=System.currentTimeMillis();
         }
         boolean expired(long now){
@@ -93,7 +92,7 @@ public class Resolver implements Runnable{
             for (ServiceRequest r:openRequests){
                 if (r.expired(now) && r.retries < MAX_RETRIGGER){
                     Log.i(LPRFX,"retrigger query for "+r.name);
-                    resolveService(r.name,r.type,false);
+                    resolveService(r.name,r.description,false);
                     r.requestTime=now;
                     r.retries++;
                 }
@@ -109,7 +108,19 @@ public class Resolver implements Runnable{
         return r;
     }
     private void sendResolved(SrvRecord srv, Host host){
+        ServiceDescription description=null;
+        for (ServiceDescription d:MainActivity.services){
+            if (srv.getName().contains(d.service)){
+                description=d;
+                break;
+            }
+        }
+        if (description == null){
+            Log.i(LPRFX,"unable to match "+srv.getName()+" to a known service");
+            return;
+        }
         Target target=new Target();
+        String SUFFIX=description.service+Domain.LOCAL.getName();
         target.name=srv.getName().substring(0,srv.getName().length()-SUFFIX.length()-1);
         target.host=srv.getTarget();
         target.intf=intf;
@@ -123,13 +134,8 @@ public class Resolver implements Runnable{
             }
         }
         try {
-            if (srv.getName().indexOf(MainActivity.SERVICE_TYPE) >= 0) {
-                target.uri = new URI("http", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
-            }
-            else {
-                target.uri = new URI("ssh", null, host.address.getHostAddress(), srv.getPort(), null, null, null);
-                target.alwaysExternal=true;
-            }
+            target.uri = new URI(description.protocol, null, host.address.getHostAddress(), srv.getPort(), null, null, null);
+            target.description=description;
             android.os.Message targetMessage = activity.handler.obtainMessage(MainActivity.ADD_SERVICE_MSG, target);
             Log.i(LPRFX, "resolve success for " + target.name+" "+target.uri);
             targetMessage.sendToTarget();
@@ -201,11 +207,11 @@ public class Resolver implements Runnable{
     private Question serviceQuestion(String name,String type){
         return new Question(name+"."+type+Domain.LOCAL.getName(), Question.QType.SRV, Question.QClass.IN);
     }
-    public void resolveService(String name,String type,boolean storeRequest){
-        Question q= serviceQuestion(name,type);
+    public void resolveService(String name,ServiceDescription description,boolean storeRequest){
+        Question q= serviceQuestion(name,description.service);
         if (storeRequest){
             synchronized (openRequests){
-                openRequests.add(new ServiceRequest(name,type));
+                openRequests.add(new ServiceRequest(name,description));
             }
         }
         Thread st=new Thread(new Runnable() {

@@ -49,6 +49,15 @@ import java.util.HashSet;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+    static class ResolveEntry{
+        public NsdServiceInfo info;
+        public ServiceDescription description;
+
+        public ResolveEntry(NsdServiceInfo info, ServiceDescription description) {
+            this.info = info;
+            this.description = description;
+        }
+    }
 
     static final String CHANNEL_ID = "main";
     static final String PREF_INTERNAL_RESOLVER = "internalResolver";
@@ -61,8 +70,10 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<NsdManager.DiscoveryListener> discoveryListeners=new ArrayList<>();
     private NsdManager nsdManager;
     private static String PRFX="BonjourBrowser";
-    public static final String SERVICE_TYPE="_http._tcp.";
-    public static final String SERVICE_TYPE_SSH="_ssh._tcp.";
+    public static ServiceDescription services[]=new ServiceDescription[]{
+            new ServiceDescription("_http._tcp.","http",false),
+            new ServiceDescription("_ssh._tcp.","ssh",true)
+    };
     private boolean discoveryActive=false;
     Handler handler;
     private long startSequence=0;
@@ -71,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int TIMER_MSG=3;
     private static final long DISCOVERY_TIMER=1000;
     private static final long RESOLVE_TIMEOUT=30000; //restart resolve after this time anyway
-    private ArrayList<NsdServiceInfo> resolveQueue=new ArrayList<>();
+    private ArrayList<ResolveEntry> resolveQueue=new ArrayList<>();
     private long lastResolveStart=0;
     private boolean resolveRunning=false;
     private long resolveSequence=0;
@@ -299,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
         if (target == null) return;
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
-        boolean runInternal=sharedPref.getBoolean(PREF_INTERNAL,false) && ! target.alwaysExternal;
+        boolean runInternal=sharedPref.getBoolean(PREF_INTERNAL,false) && ! target.description.alwaysExt;
         if (runInternal){
             Intent i = new Intent(this, WebViewActivity.class);
             i.putExtra(WebViewActivity.URL_PARAM, target.uri);
@@ -366,10 +377,10 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<Target> items=new ArrayList<>();
         adapter.setItems(items);
         Log.i(PRFX,"start discovery");
-        nsdManager.discoverServices(
-                SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListeners.get(0));
-        nsdManager.discoverServices(
-                SERVICE_TYPE_SSH, NsdManager.PROTOCOL_DNS_SD, discoveryListeners.get(1));
+        for (int i=0;i<services.length;i++) {
+            nsdManager.discoverServices(
+                    services[i].service, NsdManager.PROTOCOL_DNS_SD, discoveryListeners.get(i));
+        }
         discoveryActive=true;
         startTimer();
         synchronized (this){
@@ -427,13 +438,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void resolveService(final NsdServiceInfo service) {
+    private void resolveService(final NsdServiceInfo service,ServiceDescription description) {
         if (useAndroidQuery) {
-            resolveQueue.add(service);
+            resolveQueue.add(new ResolveEntry(service,description));
         }
         else{
             for (Resolver r:internalResolvers) {
-                r.resolveService(service.getServiceName(), service.getServiceType(),true);
+                r.resolveService(service.getServiceName(), description,true);
             }
         }
     }
@@ -448,10 +459,12 @@ public class MainActivity extends AppCompatActivity {
     static class AndroidResolver implements NsdManager.ResolveListener {
         private MainActivity activity;
         private long sequence;
+        private ServiceDescription description;
 
-        AndroidResolver(MainActivity activity, long sequence) {
+        AndroidResolver(MainActivity activity, ServiceDescription description, long sequence) {
             this.activity = activity;
             this.sequence = sequence;
+            this.description=description;
         }
 
         @Override
@@ -466,13 +479,8 @@ public class MainActivity extends AppCompatActivity {
             target.name = nsdServiceInfo.getServiceName();
             target.host = nsdServiceInfo.getHost().getHostName();
             try {
-                if (SERVICE_TYPE.substring(0,SERVICE_TYPE.length()-1).equals(nsdServiceInfo.getServiceType().substring(1))) {
-                    target.uri = new URI("http", null, nsdServiceInfo.getHost().getHostAddress(), nsdServiceInfo.getPort(), null, null, null);
-                }
-                if (SERVICE_TYPE_SSH.substring(0,SERVICE_TYPE_SSH.length()-1).equals(nsdServiceInfo.getServiceType().substring(1))) {
-                    target.alwaysExternal = true;
-                    target.uri = new URI("ssh", null, nsdServiceInfo.getHost().getHostAddress(), nsdServiceInfo.getPort(), null, null, null);
-                }
+                target.uri = new URI(description.protocol, null, nsdServiceInfo.getHost().getHostAddress(), nsdServiceInfo.getPort(), null, null, null);
+                target.description = description;
             } catch (URISyntaxException e) {
                 Log.e(PRFX, e.getMessage());
             }
@@ -496,20 +504,20 @@ public class MainActivity extends AppCompatActivity {
             else return;
         }
         resolveSequence++;
-        NsdServiceInfo service=resolveQueue.remove(0);
-        Log.i(PRFX,"start resolve for "+service.getServiceName()+ " with sequence "+resolveSequence);
+        ResolveEntry entry=resolveQueue.remove(0);
+        Log.i(PRFX,"start resolve for "+entry.info.getServiceName()+ " with sequence "+resolveSequence);
         resolveRunning=true;
         lastResolveStart=now;
-        nsdManager.resolveService(service, new AndroidResolver(this, resolveSequence));
+        nsdManager.resolveService(entry.info, new AndroidResolver(this, entry.description,resolveSequence));
 
     }
     public void initializeDiscoveryListener() {
 
         // Instantiate a new DiscoveryListener
         discoveryListeners.clear();
-        for (int i = 0; i < 2; i++) {
-            final int key=i;
-            final String type=key==0?SERVICE_TYPE:SERVICE_TYPE_SSH;
+        for (ServiceDescription d : this.services) {
+            final String key=d.service;
+            final ServiceDescription description=d;
             discoveryListeners.add(new NsdManager.DiscoveryListener() {
 
                 // Called as soon as service discovery begins.
@@ -522,10 +530,10 @@ public class MainActivity extends AppCompatActivity {
                 public void onServiceFound(NsdServiceInfo service) {
                     // A service was found! Do something with it.
                     Log.d(PRFX, key+" Service discovery success" + service);
-                    if (!service.getServiceType().equals(type)) {
+                    if (!service.getServiceType().equals(description.service)) {
                         return;
                     }
-                    resolveService(service);
+                    resolveService(service,description);
 
                 }
 
