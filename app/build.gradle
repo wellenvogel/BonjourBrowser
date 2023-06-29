@@ -11,11 +11,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
     }
 
-    compileSdkVersion 30
+    compileSdkVersion 33
     defaultConfig {
         applicationId "de.wellenvogel.bonjourbrowser"
         minSdkVersion 19
-        targetSdkVersion 30
+        targetSdkVersion 33
         versionCode 112
         versionName "1.12"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -53,6 +53,7 @@ android {
     lintOptions {
           abortOnError false
       }
+    namespace 'de.wellenvogel.bonjourbrowser'
 
 
 }
