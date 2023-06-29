@@ -7,6 +7,11 @@
         android:key="ssh"
         android:title="@string/prefSSH" />
     <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/vnc"
+        android:defaultValue="true"
+        android:key="vnc"
+        android:title="@string/prefVNC" />
+    <android.support.v7.preference.SwitchPreferenceCompat
         android:id="@+id/internal"
         android:defaultValue="false"
         android:key="internalBrowser"

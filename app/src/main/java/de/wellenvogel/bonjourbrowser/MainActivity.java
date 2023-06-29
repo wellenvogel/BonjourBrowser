@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     static final String CHANNEL_ID = "main";
     static final String PREF_INTERNAL_RESOLVER = "internalResolver";
     static final String PREF_SSH= "ssh";
+    static final String PREF_VNC= "vnc";
     static final String PREF_LOCK_NET = "lockNet";
     static final String PREF_INTERNAL="internalBrowser";
     private ListView list;
@@ -83,7 +84,8 @@ public class MainActivity extends AppCompatActivity {
     private static String PRFX="BonjourBrowser";
     public static ServiceDescription services[]=new ServiceDescription[]{
             new ServiceDescription("_http._tcp.","http",false,R.drawable.ic_language_black_24dp),
-            new ServiceDescription("_ssh._tcp.","ssh",true,R.drawable.ic_terminal_black_24dp)
+            new ServiceDescription("_ssh._tcp.","ssh",true,R.drawable.ic_terminal_black_24dp),
+            new ServiceDescription("_rfb._tcp.","vnc",true,R.drawable.ic_connected_tv)
     };
     private boolean discoveryActive=false;
     Handler handler;
@@ -391,7 +393,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         boolean parseSsh=sharedPref.getBoolean(PREF_SSH,true);
-        initializeDiscoveryListener(parseSsh);
+        boolean parseVnc=sharedPref.getBoolean(PREF_VNC,true);
+        initializeDiscoveryListener(parseSsh,parseVnc);
         ArrayList<Target> items=new ArrayList<>();
         adapter.setItems(items);
         Log.i(PRFX,"start discovery");
@@ -530,12 +533,15 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void initializeDiscoveryListener(boolean parseSsh) {
+    public void initializeDiscoveryListener(boolean parseSsh, boolean parseVnc) {
 
         // Instantiate a new DiscoveryListener
         discoveryListeners.clear();
         for (ServiceDescription d : services) {
             if (d.protocol.equals("ssh") && ! parseSsh){
+                continue;
+            }
+            if (d.protocol.equals("vnc") && ! parseVnc){
                 continue;
             }
             final String key = d.service;

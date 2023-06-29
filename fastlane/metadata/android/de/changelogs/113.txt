@@ -1,0 +1,4 @@
+Erweiterungen:
+- Es können jetzt auch VNC Services gefunden werden.
+  Das erfordert einen installierten VNC client der auf vnc://... URLs reagiert(z.B. AVNC, RealVNC)
+
