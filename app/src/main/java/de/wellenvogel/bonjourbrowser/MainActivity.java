@@ -84,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private static String PRFX="BonjourBrowser";
     public static ServiceDescription services[]=new ServiceDescription[]{
             new ServiceDescription("_http._tcp.","http",false,R.drawable.ic_language_black_24dp),
+            new ServiceDescription("_https._tcp.","https",false,R.drawable.ic_language_black_24dp),
             new ServiceDescription("_ssh._tcp.","ssh",true,R.drawable.ic_terminal_black_24dp),
             new ServiceDescription("_rfb._tcp.","vnc",true,R.drawable.ic_connected_tv)
     };

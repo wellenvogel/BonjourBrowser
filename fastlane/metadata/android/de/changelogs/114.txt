@@ -1,0 +1,3 @@
+Erweiterungen:
+- Es können jetzt auch HTTPS Services gefunden werden.
+
