@@ -1,0 +1,2 @@
+Extensions:
+- now it is also possible to browse for https services.
