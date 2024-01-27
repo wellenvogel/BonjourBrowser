@@ -1,5 +1,5 @@
-# BonjourBrowser
-Android app to browse bonjour (zeroconf, avahi) services for http, ssh and vnc. 
+# VielightBrowser
+This is a fork from BonjourBrowser Android app to browse bonjour (zeroconf, avahi) services for http, ssh and vnc. 
 
 On found services you can:
    * Launch a browser 
@@ -12,5 +12,5 @@ There is a couple of special features for the internal Browser:
    * Hide System Bars
    * Support a JS Dim API (for [AvNav](https://play.google.com/store/apps/details?id=de.wellenvogel.avnav.main&hl=gsw&gl=US))
    
-Find it on PlayStore here <a href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser&hl=gsw&gl=US"><img src="https://play-lh.googleusercontent.com/sOV0YDqS3VNhTd4PfLB4PKj89_bbP8MtFHCVydjSp1-zLMyc8LB_z_HFVsZQEFgINQ=s180-rw" width="30" align="center"/>
+Many thanks to Anreas Vogel "andreas@wellenvogel.de" for this fork
 
