@@ -22,4 +22,6 @@
     <string name="prefSSH">Browse for SSH</string>
     <string name="noHandler">no application to handle </string>
     <string name="prefVNC">Browse for VNC</string>
+    <string name="download_finished">download finished</string>
+    <string name="download_error">"download error: "</string>
 </resources>
