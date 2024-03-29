@@ -240,7 +240,7 @@ public class WebViewActivity extends AppCompatActivity  {
             Intent action1Intent = new Intent()
                     .setAction(ACTION_CANCEL)
                     .putExtra(INDEX_NAME,index);
-            PendingIntent action1PendingIntent = PendingIntent.getBroadcast(WebViewActivity.this,index,action1Intent,0);
+            PendingIntent action1PendingIntent = PendingIntent.getBroadcast(WebViewActivity.this, index, action1Intent, PendingIntent.FLAG_IMMUTABLE);
             notificationBuilder =
                     new NotificationCompat.Builder(WebViewActivity.this,MainActivity.CHANNEL_ID)
                             .setSmallIcon(R.drawable.ic_icon_bw)
