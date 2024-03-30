@@ -27,6 +27,8 @@ import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.webkit.CookieManager;
+import android.webkit.URLUtil;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,8 +36,10 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 
@@ -227,6 +231,55 @@ public class DownloadHandler {
             }
             done=true;
         }
+    }
+    public static class DownloadException extends Exception{
+        public DownloadException(String message) {
+            super(message);
+        }
+    };
+
+    public static Download createHandler(Activity activity, String url, String userAgent, String
+            contentDisposition, String mimeType, long contentLength) throws DownloadException, UnsupportedEncodingException {
+        Download nextDownload = null;
+        String fileName = "";
+        boolean isData = false;
+        Uri uri = Uri.parse(url);
+        String[] knowSchemas = new String[]{"http", "https", "data"};
+        String urlSchema = uri != null ? uri.getScheme().toLowerCase() : "";
+        boolean known = false;
+        for (String schema : knowSchemas) {
+            if (urlSchema.equals(schema)) {
+                known = true;
+                break;
+            }
+        }
+        if (!known) {
+            throw new DownloadException("invalid type " + urlSchema);
+        }
+        isData = urlSchema.equals("data");
+        if (contentDisposition.indexOf("filename*=") >= 0) {
+            contentDisposition = contentDisposition.replaceAll(".*filename\\*=utf-8''", "");
+            contentDisposition = URLDecoder.decode(contentDisposition, "utf-8");
+            contentDisposition = "attachment; filename=" + contentDisposition;
+        }
+        String[] contentSplit = contentDisposition.split("filename=");
+        if (contentSplit.length > 1) {
+            fileName = contentSplit[1].replace("filename=", "").replace("\"", "");
+        } else {
+            if (isData) {
+                fileName = "data.bin";
+            } else {
+                fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+            }
+        }
+
+        if (isData) {
+            nextDownload = new DownloadHandler.DataDownload(url, activity);
+        } else {
+            nextDownload = new DownloadHandler.DownloadHttp(url, activity, CookieManager.getInstance().getCookie(url), userAgent);
+        }
+        nextDownload.fileName = fileName;
+        return nextDownload;
     }
 
 }

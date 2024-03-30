@@ -286,47 +286,21 @@ public class WebViewActivity extends AppCompatActivity  {
         webView.setDownloadListener(new DownloadListener() {
             public void onDownloadStart(String url, String userAgent, String
                     contentDisposition, String mimeType, long contentLength) {
-                Log.i(LOGPRFX, "download request for "+url);
+                Log.i(LOGPRFX, "download request for " + url);
                 if (downloadRequest != null && downloadRequest.isRunning()) return;
-                DownloadHandler.Download nextDownload=null;
-                String fileName="";
-                boolean isData=false;
                 try {
-                    Uri uri = Uri.parse(url);
-                    isData = uri.getScheme().equalsIgnoreCase("data");
-                     if (contentDisposition.indexOf("filename*=") >= 0){
-                        contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
-                        contentDisposition= URLDecoder.decode(contentDisposition,"utf-8");
-                        contentDisposition="attachment; filename="+contentDisposition;
-                    }
-                    String[] contentSplit = contentDisposition.split("filename=");
-                    if (contentSplit.length > 1) {
-                        fileName = contentSplit[1].replace("filename=", "").replace("\"", "");
-                    } else {
-                        if (isData) {
-                            fileName = "data.bin";
-                        } else {
-                            fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
-                        }
-                    }
-                    if (nextDownload == null) {
-                        if (isData) {
-                            nextDownload = new DownloadHandler.DataDownload(url,WebViewActivity.this);
-                        } else {
-                            nextDownload = new DownloadHandler.DownloadHttp(url,WebViewActivity.this, CookieManager.getInstance().getCookie(url),userAgent);
-                        }
-                    }
-                    nextDownload.fileName=fileName;
-                    nextDownload.progress=WebViewActivity.this.dlProgress;
-                    nextDownload.dlText=WebViewActivity.this.dlText;
-                    downloadRequest=nextDownload;
+                    DownloadHandler.Download nextDownload = DownloadHandler.createHandler(WebViewActivity.this,
+                            url, userAgent, contentDisposition, mimeType, contentLength);
+                    nextDownload.progress = WebViewActivity.this.dlProgress;
+                    nextDownload.dlText = WebViewActivity.this.dlText;
+                    downloadRequest = nextDownload;
                     Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType(mimeType);
-                    intent.putExtra(Intent.EXTRA_TITLE, fileName);
-                    startActivityForResult(intent,REQUEST_DOWNLOAD);
-                }catch (Throwable t){
-                    Toast.makeText(WebViewActivity.this,"download error:"+t,Toast.LENGTH_LONG).show();
+                    intent.putExtra(Intent.EXTRA_TITLE, nextDownload.fileName);
+                    startActivityForResult(intent, REQUEST_DOWNLOAD);
+                } catch (Throwable t) {
+                    Toast.makeText(WebViewActivity.this, "download error:" + t.getMessage(), Toast.LENGTH_LONG).show();
                 }
             }
         });
