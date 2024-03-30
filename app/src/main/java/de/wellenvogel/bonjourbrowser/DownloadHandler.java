@@ -114,11 +114,11 @@ public class DownloadHandler {
                 public void run() {
                     Log.i(LOGPRFX,"download started for "+url);
                     update(0);
+                    long sum=0;
                     try {
                         InputStream is=openInput();
                         byte [] buffer=new byte[4*1024*1024];
                         int rdBytes=0;
-                        long sum=0;
                         final long UPDIV=2*1024*1024;
                         long lastUpdate=sum-UPDIV-1;
                         while ((rdBytes=is.read(buffer)) > 0){
@@ -183,7 +183,7 @@ public class DownloadHandler {
             urlConnection = (HttpURLConnection) dlurl.openConnection();
             urlConnection.setRequestProperty("Cookie", cookies);
             urlConnection.setRequestProperty("User-Agent", userAgent);
-            return new BufferedInputStream(urlConnection.getInputStream());
+            return urlConnection.getInputStream();
         }
 
         @Override

@@ -294,15 +294,20 @@ public class WebViewActivity extends AppCompatActivity  {
                 try {
                     Uri uri = Uri.parse(url);
                     isData = uri.getScheme().equalsIgnoreCase("data");
-                    if (contentDisposition.indexOf("filename*=") >= 0){
+                     if (contentDisposition.indexOf("filename*=") >= 0){
                         contentDisposition=contentDisposition.replaceAll(".*filename\\*=utf-8''","");
                         contentDisposition= URLDecoder.decode(contentDisposition,"utf-8");
                         contentDisposition="attachment; filename="+contentDisposition;
                     }
-                    if (isData) {
-                        fileName = "data.bin";
+                    String[] contentSplit = contentDisposition.split("filename=");
+                    if (contentSplit.length > 1) {
+                        fileName = contentSplit[1].replace("filename=", "").replace("\"", "");
                     } else {
-                        fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                        if (isData) {
+                            fileName = "data.bin";
+                        } else {
+                            fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                        }
                     }
                     if (nextDownload == null) {
                         if (isData) {
