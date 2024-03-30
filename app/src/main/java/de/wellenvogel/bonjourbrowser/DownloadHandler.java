@@ -121,7 +121,7 @@ public class DownloadHandler {
                         int rdBytes=0;
                         final long UPDIV=2*1024*1024;
                         long lastUpdate=sum-UPDIV-1;
-                        while ((rdBytes=is.read(buffer)) > 0){
+                        while ((rdBytes=is.read(buffer)) != -1){
                             if (done) throw new InterruptedException("user stop");
                             os.write(buffer,0,rdBytes);
                             sum+=rdBytes;
@@ -135,7 +135,12 @@ public class DownloadHandler {
                         closeInput();
                         Log.i(LOGPRFX,"download finished for "+uri);
                     } catch (Throwable e) {
-                        toast(activity.getString(R.string.download_error)+e);
+                        if (done){
+                            toast(activity.getString(R.string.download_interrupted));
+                        }
+                        else {
+                            toast(activity.getString(R.string.download_error) + e.getMessage());
+                        }
                         try{
                             DocumentsContract.deleteDocument(activity.getContentResolver(),uri);
                             Log.i(LOGPRFX,"deleted download "+uri);
@@ -183,6 +188,7 @@ public class DownloadHandler {
             urlConnection = (HttpURLConnection) dlurl.openConnection();
             urlConnection.setRequestProperty("Cookie", cookies);
             urlConnection.setRequestProperty("User-Agent", userAgent);
+            urlConnection.connect();
             return urlConnection.getInputStream();
         }
 
