@@ -1,0 +1,2 @@
+Corrections:
+- new download handling to work on newer Android Versions
