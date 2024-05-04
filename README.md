@@ -1,16 +1,20 @@
 # BonjourBrowser
-Android app to browse bonjour (zeroconf, avahi) services for http, ssh and vnc. 
+Discover web portals of devices in your local network and connect with one click!
+
+Android app to find Bonjour (ZeroConf, Avahi) services for HTTP, SSH and VNC. 
 
 On found services you can:
    * Launch a browser 
-   * Start the integrated Browser
-   * Launch an external SSH client ( recommended: [JuiceSSH](https://play.google.com/store/apps/details?id=com.sonelli.juicessh&hl=gsw&gl=US))
-   * Launch an external VNC client (e.g. [AVNC](https://play.google.com/store/apps/details?id=com.gaurav.avnc&hl=gsw&gl=US))
+   * Open in the embedded Browser
+   * Launch an external SSH client e.g. [JuiceSSH](https://play.google.com/store/apps/details?id=com.sonelli.juicessh)
+   * Launch an external VNC client e.g. [AVNC](https://play.google.com/store/apps/details?id=com.gaurav.avnc)
 
 There is a couple of special features for the internal Browser:
    * Keep the Screen On
    * Hide System Bars
    * Support a JS Dim API (for [AvNav](https://play.google.com/store/apps/details?id=de.wellenvogel.avnav.main&hl=gsw&gl=US))
-   
-Find it on PlayStore here <a href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser&hl=gsw&gl=US"><img src="https://play-lh.googleusercontent.com/sOV0YDqS3VNhTd4PfLB4PKj89_bbP8MtFHCVydjSp1-zLMyc8LB_z_HFVsZQEFgINQ=s180-rw" width="30" align="center"/>
+
+## Installation
+* Install from [Play Store](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser)
+* Install from [F-Droid](https://f-droid.org/packages/de.wellenvogel.bonjourbrowser/)
 

@@ -1,0 +1,27 @@
+<resources>
+     <string name="scan">Сканировать</string>
+     <string name="stop">Стоп</string>
+
+     <string name="settings">Настройки</string>
+     <string name="prefInternal">Внутренний браузер</string>
+     <string name="prefKeepOn">Держать экран включенным</string>
+     <string name="hideStatus">Скрыть системную строку состояния</string>
+     <string name="hideNavigation">Скрыть системную панель навигации</string>
+     <string name="internalResolver">Использовать внутренний DNS резолвер</string>
+     <string name="allowDim">Включить Dim js Api</string>
+     <string name="prefReset">Сбросить веб-хранилище (перезапустить)</string>
+     <string name="loading">Загрузка </string>
+     <string name="authentication">Требуется аутентификация</string>
+     <string name="textZoom">Масштаб текста</string>
+     <string name="ifchange">Сеть изменена</string>
+     <string name="channel_name">Уведомления о скачивании</string>
+     <string name="channel_description">Уведомления при скачивании файлов</string>
+     <string name="download_running">Скачивание уже запущено</string>
+     <string name="lockNet">Привязка к сети</string>
+     <string name="prefSSH">Найти SSH</string>
+     <string name="noHandler">нет приложения для обработки </string>
+     <string name="prefVNC">Найти VNC</string>
+     <string name="download_finished">скачивание завершено</string>
+     <string name="download_error">"ошибка скачивания: "</string>
+     <string name="download_interrupted">скачивание прервано</string>
+</resources>

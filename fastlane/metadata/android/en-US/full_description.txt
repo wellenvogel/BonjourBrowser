@@ -1,3 +1,9 @@
 Discover web portals of devices in your local network and connect with one click!
 
-<i>Bonjour Browser</i> lets you browse your local network for Bonjour (ZeroConf, Avahi) services for http and launch a browser on found services. You can use the System Browser or an embedded one.
+The app lets you find Bonjour (ZeroConf, Avahi) services for HTTP, SSH and VNC.
+
+On found services you can:
+ * Launch a browser
+ * Open in the embedded Browser
+ * Launch an external SSH client e.g. <a href="https://play.google.com/store/apps/details?id=com.sonelli.juicessh">JuiceSSH</a>
+ * Launch an external VNC client e.g. <a href="https://play.google.com/store/apps/details?id=com.gaurav.avnc">AVNC</a>
