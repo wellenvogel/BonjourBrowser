@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
     static final String CHANNEL_ID = "main";
     static final String PREF_INTERNAL_RESOLVER = "internalResolver";
+    static final String PREF_SHOW_OWN="showOwn";
     static final String PREF_SSH= "ssh";
     static final String PREF_VNC= "vnc";
     static final String PREF_LOCK_NET = "lockNet";
@@ -101,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean resolveRunning=false;
     private long resolveSequence=0;
     private boolean useAndroidQuery=false;
+    private boolean showOwnServices=true;
     private HashSet<NetworkInterface> interfaces=new HashSet<NetworkInterface>();
     private HashSet<Resolver> internalResolvers=new HashSet<Resolver>();
     private HashSet<InetAddress> interfaceAddresses=new HashSet<>();
@@ -376,6 +378,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences sharedPref =
                 PreferenceManager.getDefaultSharedPreferences(this);
         useAndroidQuery=!sharedPref.getBoolean(PREF_INTERNAL_RESOLVER,true);
+        showOwnServices=sharedPref.getBoolean(PREF_SHOW_OWN,true);
         if (!useAndroidQuery){
             for (Resolver r : internalResolvers) {
                 try {
@@ -447,6 +450,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void addTarget(Target target){
         if (target.uri == null) return;
+        //thread safe
+        HashSet<InetAddress> ownInterfaces=interfaceAddresses;
+        if (! showOwnServices && ownInterfaces.contains(target.host)) return;
         int num=adapter.getCount();
         for (int i=0;i<num;i++){
             if (adapter.getItem(i).uri.toString().equals(target.uri.toString())) return;
@@ -506,7 +512,7 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
             Target target = new Target();
             target.name = nsdServiceInfo.getServiceName();
-            target.host = nsdServiceInfo.getHost().getHostName();
+            target.host = nsdServiceInfo.getHost();
             try {
                 target.uri = new URI(description.protocol, null, nsdServiceInfo.getHost().getHostAddress(), nsdServiceInfo.getPort(), null, null, null);
                 target.description = description;

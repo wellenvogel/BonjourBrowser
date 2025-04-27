@@ -126,7 +126,7 @@ public class Resolver implements Runnable{
         Target target=new Target();
         String SUFFIX=description.service+Domain.LOCAL.getName();
         target.name=srv.getName().substring(0,srv.getName().length()-SUFFIX.length()-1);
-        target.host=srv.getTarget();
+        target.host=host.address;
         target.intf=intf;
         synchronized (openRequests){
             ArrayList<ServiceRequest> finished=new ArrayList<>();

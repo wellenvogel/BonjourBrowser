@@ -1,2 +1,4 @@
 Corrections:
 - use multicast for the internal resolver on Android >= 8.0 (detect services on Android devices)
+- allow to hide services on own device
+- adapt to API level 34 (Android 14)

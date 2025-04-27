@@ -25,4 +25,5 @@
     <string name="download_finished">download finished</string>
     <string name="download_error">"download error: "</string>
     <string name="download_interrupted">download interrupted</string>
+    <string name="showOwn">Show own services</string>
 </resources>

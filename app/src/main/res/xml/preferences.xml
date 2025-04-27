@@ -42,6 +42,11 @@
         android:key="lockNet"
         android:title="@string/lockNet" />
     <android.support.v7.preference.SwitchPreferenceCompat
+        android:id="@+id/showOwn"
+        android:defaultValue="true"
+        android:key="showOwn"
+        android:title="@string/showOwn" />
+    <android.support.v7.preference.SwitchPreferenceCompat
         android:id="@+id/allowDim"
         android:defaultValue="false"
         android:key="allowDim"
