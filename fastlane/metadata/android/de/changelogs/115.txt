@@ -1,0 +1,3 @@
+Korrektur:
+- Nutzung von Multicast für den internen Resolver ab Android 8 (Erkennung von Android Services)
+

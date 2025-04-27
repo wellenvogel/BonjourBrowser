@@ -1,0 +1,2 @@
+Corrections:
+- use multicast for the internal resolver on Android >= 8.0 (detect services on Android devices)

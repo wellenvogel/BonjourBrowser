@@ -11,6 +11,7 @@ import android.net.Network;
 import android.net.Uri;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -105,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
     private HashSet<InetAddress> interfaceAddresses=new HashSet<>();
     private HashMap<NetworkInterface, Network> interfaceMappings=new HashMap<>();
     private ConnectivityManager connectivityManager;
+    private WifiManager.MulticastLock multicastLock;
 
 
     static class TargetAdapter extends ArrayAdapter<Target>{
@@ -155,6 +157,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WifiManager mgr=(WifiManager)(getApplicationContext().getSystemService(Context.WIFI_SERVICE));
+        if (mgr != null) {
+            multicastLock = mgr.createMulticastLock("MdnsWorker");
+        }
         connectivityManager=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         setTitle("BonjourBrowser "+ BuildConfig.VERSION_NAME);
         setContentView(R.layout.activity_main);
@@ -378,6 +384,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             internalResolvers.clear();
+            if (!multicastLock.isHeld()) multicastLock.acquire();
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
                     for (NetworkInterface intf:interfaces){
@@ -389,7 +396,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 Log.e(PRFX,"unable to create resolver");
-                Toast.makeText(this,"unable to create resolver",Toast.LENGTH_LONG).show();
+                Toast.makeText(this,"unable to create resolver: "+e.getMessage(),Toast.LENGTH_LONG).show();
             }
         }
         boolean parseSsh=sharedPref.getBoolean(PREF_SSH,true);
@@ -410,6 +417,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void stopScan(){
+        if (multicastLock.isHeld()) multicastLock.release();
         if (discoveryActive) {
             for (ListenerEntry entry : discoveryListeners) {
                 try {
