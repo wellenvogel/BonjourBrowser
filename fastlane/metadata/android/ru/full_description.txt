@@ -1,0 +1,9 @@
+Находите веб-порталы устройств в вашей локальной сети и подключитесь одним кликом!
+
+Приложение позволяет найти сервисы Bonjour (ZeroConf, Avahi) для HTTP, SSH и VNC.
+
+Для найденных сервисах вы можете:
+  * Запустите браузер
+  * Открыть во встроенном браузере
+  * Запустить внешний SSH-клиент, н.п. <a href="https://play.google.com/store/apps/details?id=com.sonelli.juicessh">JuiceSSH</a>
+  * Запустить внешний клиент VNC, н.п. <a href="https://play.google.com/store/apps/details?id=com.gaurav.avnc">AVNC</a>

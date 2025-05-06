@@ -1,1 +1,1 @@
-Browse Bonjour services for http
+Browse Bonjour services for HTTP, SSH and VNC
